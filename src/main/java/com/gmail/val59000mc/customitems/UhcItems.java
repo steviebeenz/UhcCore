@@ -1,5 +1,6 @@
 package com.gmail.val59000mc.customitems;
 
+import com.gmail.val59000mc.configuration.MainConfig;
 import com.gmail.val59000mc.game.GameManager;
 import com.gmail.val59000mc.languages.Lang;
 import com.gmail.val59000mc.players.PlayerState;
@@ -67,7 +68,7 @@ public class UhcItems{
 		Inventory inv = Bukkit.createInventory(null, maxSlots, Lang.TEAM_INVENTORY_TEAMS_LIST);
 		int slot = 0;
 		GameManager gm = GameManager.getGameManager();
-		List<UhcTeam> teams = gm.getPlayersManager().listUhcTeams();
+		List<UhcTeam> teams = gm.getPlayerManager().listUhcTeams();
 		for(UhcTeam team : teams){
 			// If team leader is spectating don't add skull to list.
 			if (team.isSpectating()){
@@ -75,7 +76,7 @@ public class UhcItems{
 			}
 
 			if(slot < maxSlots){
-				ItemStack item = createTeamSkullItem(team, !gm.getConfiguration().getTeamAlwaysReady());
+				ItemStack item = createTeamSkullItem(team, !gm.getConfig().get(MainConfig.TEAM_ALWAYS_READY));
 				inv.setItem(slot, item);
 				slot++;
 			}
@@ -109,7 +110,7 @@ public class UhcItems{
 		Inventory inv = Bukkit.createInventory(null, maxSlots, Lang.TEAM_INVENTORY_INVITE_PLAYER);
 		int slot = 0;
 		GameManager gm = GameManager.getGameManager();
-		List<UhcTeam> teams = gm.getPlayersManager().listUhcTeams();
+		List<UhcTeam> teams = gm.getPlayerManager().listUhcTeams();
 		for(UhcTeam team : teams){
 			// If team leader is spectating don't add skull to list.
 			if (team.isSpectating()){
@@ -202,10 +203,10 @@ public class UhcItems{
 		List<ItemStack> items = new ArrayList<>();
 		GameManager gm = GameManager.getGameManager();
 
-		UhcPlayer uhcPlayer = gm.getPlayersManager().getUhcPlayer(player);
+		UhcPlayer uhcPlayer = gm.getPlayerManager().getUhcPlayer(player);
 
 		// Team ready/not ready item
-		if(!gm.getConfiguration().getTeamAlwaysReady()){
+		if(!gm.getConfig().get(MainConfig.TEAM_ALWAYS_READY)){
 			if(uhcPlayer.getTeam().isReadyToStart()){
 				items.add(GameItem.TEAM_READY.getItem());
 			}else{
@@ -213,11 +214,11 @@ public class UhcItems{
 			}
 		}
 
-		if (gm.getConfiguration().getUseTeamColors()){
+		if (gm.getConfig().get(MainConfig.TEAM_COLORS)){
 			items.add(GameItem.TEAM_COLOR_SELECTION.getItem());
 		}
 
-		if (gm.getConfiguration().getEnableTeamNames()) {
+		if (gm.getConfig().get(MainConfig.ENABLE_TEAM_NAMES)) {
 			items.add(GameItem.TEAM_RENAME.getItem());
 		}
 

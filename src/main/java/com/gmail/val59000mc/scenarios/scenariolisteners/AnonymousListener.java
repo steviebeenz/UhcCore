@@ -1,8 +1,10 @@
 package com.gmail.val59000mc.scenarios.scenariolisteners;
 
+import com.gmail.val59000mc.configuration.Dependencies;
 import com.gmail.val59000mc.events.PlayerStartsPlayingEvent;
 import com.gmail.val59000mc.events.UhcGameStateChangedEvent;
 import com.gmail.val59000mc.events.UhcPlayerStateChangedEvent;
+import com.gmail.val59000mc.game.GameState;
 import com.gmail.val59000mc.players.PlayerState;
 import com.gmail.val59000mc.players.UhcPlayer;
 import com.gmail.val59000mc.scenarios.Scenario;
@@ -16,27 +18,27 @@ public class AnonymousListener extends ScenarioListener{
 
     @Override
     public void onEnable(){
-        if (!getConfiguration().getProtocolLibLoaded()){
+        if (!Dependencies.getProtocolLibLoaded()){
             Bukkit.broadcastMessage(ChatColor.RED + "[UhcCore] For Anonymous ProtocolLib needs to be installed!");
-            getScenarioManager().removeScenario(Scenario.ANONYMOUS);
+            getScenarioManager().disableScenario(Scenario.ANONYMOUS);
             return;
         }
 
-        for (UhcPlayer uhcPlayer : getPlayersManager().getAllPlayingPlayers()){
+        for (UhcPlayer uhcPlayer : getPlayerManager().getAllPlayingPlayers()){
             ProtocolUtils.setPlayerNickName(uhcPlayer, getPlayerNickName(uhcPlayer.getName()));
-            getScoreboardManager().updatePlayerTab(uhcPlayer);
+            getScoreboardManager().updatePlayerOnTab(uhcPlayer);
         }
     }
 
     @Override
     public void onDisable(){
-        if (!getConfiguration().getProtocolLibLoaded()){
+        if (!Dependencies.getProtocolLibLoaded()){
             return; // Never enabled so don't disable.
         }
 
-        for (UhcPlayer uhcPlayer : getPlayersManager().getAllPlayingPlayers()){
+        for (UhcPlayer uhcPlayer : getPlayerManager().getAllPlayingPlayers()){
             ProtocolUtils.setPlayerNickName(uhcPlayer, null);
-            getScoreboardManager().updatePlayerTab(uhcPlayer);
+            getScoreboardManager().updatePlayerOnTab(uhcPlayer);
         }
     }
 
@@ -45,15 +47,22 @@ public class AnonymousListener extends ScenarioListener{
         UhcPlayer uhcPlayer = e.getUhcPlayer();
 
         ProtocolUtils.setPlayerNickName(uhcPlayer, getPlayerNickName(uhcPlayer.getName()));
-        getScoreboardManager().updatePlayerTab(uhcPlayer);
+        getScoreboardManager().updatePlayerOnTab(uhcPlayer);
     }
 
+    /**
+     * Make names visible after the game ends.
+     */
     @EventHandler
-    public void onGameStateChanged(UhcGameStateChangedEvent e){
-        for (UhcPlayer uhcPlayer : getPlayersManager().getPlayersList()){
+    public void onGameStateChanged(UhcGameStateChangedEvent e) {
+        if (e.getNewGameState() != GameState.ENDED) {
+            return;
+        }
+
+        for (UhcPlayer uhcPlayer : getPlayerManager().getPlayersList()){
             if (uhcPlayer.hasNickName()) {
                 ProtocolUtils.setPlayerNickName(uhcPlayer, null);
-                getScoreboardManager().updatePlayerTab(uhcPlayer);
+                getScoreboardManager().updatePlayerOnTab(uhcPlayer);
             }
         }
     }
@@ -65,7 +74,7 @@ public class AnonymousListener extends ScenarioListener{
 
             // clear nick
             ProtocolUtils.setPlayerNickName(player, null);
-            getScoreboardManager().updatePlayerTab(player);
+            getScoreboardManager().updatePlayerOnTab(player);
         }
     }
 

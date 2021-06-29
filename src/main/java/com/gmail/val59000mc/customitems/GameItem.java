@@ -1,6 +1,6 @@
 package com.gmail.val59000mc.customitems;
 
-import com.gmail.val59000mc.configuration.MainConfiguration;
+import com.gmail.val59000mc.configuration.MainConfig;
 import com.gmail.val59000mc.game.GameManager;
 import com.gmail.val59000mc.languages.Lang;
 import com.gmail.val59000mc.utils.UniversalMaterial;
@@ -39,6 +39,11 @@ public enum GameItem{
     // Game Items
     CUSTOM_CRAFT_BOOK(UniversalMaterial.ENCHANTED_BOOK),
     COMPASS_ITEM(UniversalMaterial.COMPASS),
+
+    // Scenario GUI items
+    SCENARIOS_EDIT(UniversalMaterial.BARRIER),
+    SCENARIOS_BACK(UniversalMaterial.ARROW),
+    SCENARIOS_NEXT(UniversalMaterial.ARROW),
 
     UNKNOWN(UniversalMaterial.AIR);
 
@@ -88,24 +93,24 @@ public enum GameItem{
 
     public boolean meetsUsageRequirements(){
         GameManager gm = GameManager.getGameManager();
-        MainConfiguration cfg = gm.getConfiguration();
+        MainConfig cfg = gm.getConfig();
         switch (this){
             case TEAM_SELECTION:
-                return cfg.getMaxPlayersPerTeam() > 1 || !cfg.getTeamAlwaysReady();
+                return cfg.get(MainConfig.MAX_PLAYERS_PER_TEAM) > 1 || !cfg.get(MainConfig.TEAM_ALWAYS_READY);
             case TEAM_LIST:
-                return cfg.getMaxPlayersPerTeam() > 1;
+                return cfg.get(MainConfig.MAX_PLAYERS_PER_TEAM) > 1;
             case KIT_SELECTION:
                 return KitsManager.isAtLeastOneKit();
             case CUSTOM_CRAFT_BOOK:
                 return CraftsManager.isAtLeastOneCraft();
             case TEAM_COLOR_SELECTION:
-                return cfg.getUseTeamColors();
+                return cfg.get(MainConfig.TEAM_COLORS);
             case SCENARIO_VIEWER:
-                return true;
+                return !gm.getScenarioManager().getEnabledScenarios().isEmpty() || cfg.get(MainConfig.ENABLE_SCENARIO_VOTING);
             case BUNGEE_ITEM:
-                return cfg.getEnableBungeeSupport() && cfg.getEnableBungeeLobbyItem();
+                return cfg.get(MainConfig.ENABLE_BUNGEE_SUPPORT) && cfg.get(MainConfig.ENABLE_BUNGEE_LOBBY_ITEM);
             case COMPASS_ITEM:
-                return cfg.getEnablePlayingCompass();
+                return cfg.get(MainConfig.ENABLE_PLAYING_COMPASS);
             case UNKNOWN:
                 return false;
         }
@@ -152,6 +157,12 @@ public enum GameItem{
                 return Lang.ITEMS_TEAM_LIST;
             case TEAM_FILL_BLACK:
                 return ChatColor.RESET.toString();
+            case SCENARIOS_EDIT:
+                return Lang.SCENARIO_GLOBAL_ITEM_EDIT;
+            case SCENARIOS_BACK:
+                return Lang.SCENARIO_GLOBAL_ITEM_BACK;
+            case SCENARIOS_NEXT:
+                return Lang.SCENARIO_GLOBAL_ITEM_NEXT;
         }
         return "Unknown item!";
     }

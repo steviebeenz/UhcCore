@@ -1,10 +1,13 @@
 package com.gmail.val59000mc.listeners;
 
 import com.gmail.val59000mc.UhcCore;
-import com.gmail.val59000mc.configuration.BlockLootConfiguration;
-import com.gmail.val59000mc.configuration.MainConfiguration;
+import com.gmail.val59000mc.configuration.LootConfiguration;
+import com.gmail.val59000mc.configuration.MainConfig;
 import com.gmail.val59000mc.customitems.UhcItems;
+import com.gmail.val59000mc.game.GameManager;
 import com.gmail.val59000mc.languages.Lang;
+import com.gmail.val59000mc.players.PlayerManager;
+import com.gmail.val59000mc.players.UhcPlayer;
 import com.gmail.val59000mc.utils.RandomUtils;
 import com.gmail.val59000mc.utils.UniversalMaterial;
 import org.bukkit.Bukkit;
@@ -24,25 +27,29 @@ import java.util.Map;
 
 public class BlockListener implements Listener{
 
-	private final MainConfiguration configuration;
-	private final Map<Material, BlockLootConfiguration> blockLoots;
+	private final PlayerManager playerManager;
+	private final MainConfig configuration;
+	private final Map<Material, LootConfiguration<Material>> blockLoots;
 	private final int maxBuildingHeight;
 	
-	public BlockListener(MainConfiguration configuration){
-		this.configuration = configuration;
-		blockLoots = configuration.getEnableBlockLoots() ? configuration.getBlockLoots() : new HashMap<>();
-		maxBuildingHeight = configuration.getMaxBuildingHeight();
+	public BlockListener(GameManager gameManager){
+		playerManager = gameManager.getPlayerManager();
+		configuration = gameManager.getConfig();
+		blockLoots = configuration.get(MainConfig.ENABLE_BLOCK_LOOT) ? configuration.get(MainConfig.BLOCK_LOOT) : new HashMap<>();
+		maxBuildingHeight = configuration.get(MainConfig.MAX_BUILDING_HEIGHT);
 	}
 
 	@EventHandler
-	public void onBlockBreak(final BlockBreakEvent event){
+	public void onBlockBreak(BlockBreakEvent event){
 		handleBlockLoot(event);
 		handleShearedLeaves(event);
+		handleFrozenPlayers(event);
 	}
 
 	@EventHandler
-	public void onBlockPlace(final BlockPlaceEvent event){
+	public void onBlockPlace(BlockPlaceEvent event){
 		handleMaxBuildingHeight(event);
+		handleFrozenPlayers(event);
 	}
 
 	@EventHandler
@@ -62,11 +69,14 @@ public class BlockListener implements Listener{
 	private void handleBlockLoot(BlockBreakEvent event){
 		Material material = event.getBlock().getType();
 		if(blockLoots.containsKey(material)){
-			BlockLootConfiguration lootConfig = blockLoots.get(material);
+			LootConfiguration<Material> lootConfig = blockLoots.get(material);
 			Location loc = event.getBlock().getLocation().add(.5,.5,.5);
+
 			event.getBlock().setType(Material.AIR);
 			event.setExpToDrop(lootConfig.getAddXp());
-			loc.getWorld().dropItem(loc, lootConfig.getLoot().clone());
+
+			lootConfig.getLoot().forEach(item -> loc.getWorld().dropItem(loc, item.clone()));
+
 			if (lootConfig.getAddXp() > 0) {
 				UhcItems.spawnExtraXp(loc, lootConfig.getAddXp());
 			}
@@ -74,7 +84,7 @@ public class BlockListener implements Listener{
 	}
 
 	private void handleShearedLeaves(BlockBreakEvent e){
-		if (!configuration.getAppleDropsFromShearing()){
+		if (!configuration.get(MainConfig.APPLE_DROPS_FROM_SHEARING)){
 			return;
 		}
 
@@ -87,12 +97,26 @@ public class BlockListener implements Listener{
 		}
 	}
 
+	private void handleFrozenPlayers(BlockBreakEvent e){
+		UhcPlayer uhcPlayer = playerManager.getUhcPlayer(e.getPlayer());
+		if (uhcPlayer.isFrozen()){
+			e.setCancelled(true);
+		}
+	}
+
+	private void handleFrozenPlayers(BlockPlaceEvent e){
+		UhcPlayer uhcPlayer = playerManager.getUhcPlayer(e.getPlayer());
+		if (uhcPlayer.isFrozen()){
+			e.setCancelled(true);
+		}
+	}
+
 	private void handleAppleDrops(LeavesDecayEvent e){
 		Block block = e.getBlock();
 		Material type = block.getType();
 		boolean isOak;
 
-		if (configuration.getAppleDropsFromAllTrees()){
+		if (configuration.get(MainConfig.APPLE_DROPS_FROM_ALL_TREES)){
 			if (type != UniversalMaterial.OAK_LEAVES.getType()) {
 				e.getBlock().setType(UniversalMaterial.OAK_LEAVES.getType());
 			}
@@ -105,7 +129,7 @@ public class BlockListener implements Listener{
 			return; // Will never drop apples so drops don't need to increase
 		}
 
-		double percentage = configuration.getAppleDropPercentage()-0.5;
+		double percentage = configuration.get(MainConfig.APPLE_DROP_PERCENTAGE)-0.5;
 
 		if (percentage <= 0){
 			return; // No added drops

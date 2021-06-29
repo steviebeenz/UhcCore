@@ -1,47 +1,103 @@
 package com.gmail.val59000mc.maploader;
 
 import com.gmail.val59000mc.UhcCore;
+import com.gmail.val59000mc.configuration.MainConfig;
 import com.gmail.val59000mc.game.GameManager;
-import com.gmail.val59000mc.game.UhcWorldBorder;
+import com.gmail.val59000mc.schematics.DeathmatchArena;
+import com.gmail.val59000mc.schematics.Lobby;
+import com.gmail.val59000mc.schematics.UndergroundNether;
+import com.gmail.val59000mc.threads.ChunkLoaderThread;
+import com.gmail.val59000mc.threads.WorldBorderThread;
 import com.gmail.val59000mc.utils.FileUtils;
 import com.gmail.val59000mc.configuration.YamlFile;
-import org.bukkit.Bukkit;
-import org.bukkit.World;
+import com.gmail.val59000mc.utils.VersionUtils;
+import com.pieterdebot.biomemapping.Biome;
+import com.pieterdebot.biomemapping.BiomeMappingAPI;
+import io.papermc.lib.PaperLib;
+import org.apache.commons.lang.Validate;
+import org.bukkit.*;
 import org.bukkit.World.Environment;
-import org.bukkit.WorldCreator;
-import org.bukkit.WorldType;
 import org.bukkit.configuration.InvalidConfigurationException;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
 public class MapLoader {
 
-	private double chunksLoaded;
-	private int veinsGenerated;
-	private double totalChunksToLoad;
-	private String environment;
+	public final static String DO_DAYLIGHT_CYCLE = "doDaylightCycle";
+	public final static String DO_MOB_SPAWNING = "doMobSpawning";
+	public final static String NATURAL_REGENERATION = "naturalRegeneration";
+	public final static String ANNOUNCE_ADVANCEMENTS = "announceAdvancements";
+	public final static String COMMAND_BLOCK_OUTPUT = "commandBlockOutput";
+	public final static String LOG_ADMIN_COMMANDS = "logAdminCommands";
+	public final static String SEND_COMMAND_FEEDBACK = "sendCommandFeedback";
+
+	private final MainConfig config;
+	private final Map<Environment, String> worldUuids;
+
+	private Lobby lobby;
+	private DeathmatchArena arena;
+
 	private long mapSeed;
 	private String mapName;
 
-	public MapLoader(){
-		chunksLoaded = 0;
-		veinsGenerated = 0;
-		environment = "starting";
+	public MapLoader(MainConfig config){
+		this.config = config;
+		worldUuids = new HashMap<>();
 		mapSeed = -1;
 		mapName = null;
 	}
-	
-	public String getLoadingState(){
-		double percentage = 100*chunksLoaded/totalChunksToLoad;		
-		return environment+" "+(Math.floor(10*percentage)/10);
+
+	public Lobby getLobby() {
+		return lobby;
 	}
-	
-	public void deleteLastWorld(String uuid){
+
+	public DeathmatchArena getArena() {
+		return arena;
+	}
+
+	public double getBorderSize(){
+		World overworld = GameManager.getGameManager().getMapLoader().getUhcWorld(World.Environment.NORMAL);
+		return overworld.getWorldBorder().getSize()/2;
+	}
+
+	public void loadWorlds(boolean debug) {
+		if (config.get(MainConfig.REPLACE_OCEAN_BIOMES)){
+			replaceOceanBiomes();
+		}
+
+		deleteOldPlayersFiles();
+
+		if(debug){
+			loadOldWorld(Environment.NORMAL);
+			if (config.get(MainConfig.ENABLE_NETHER)) {
+				loadOldWorld(Environment.NETHER);
+			}
+			if (config.get(MainConfig.ENABLE_THE_END)) {
+				loadOldWorld(Environment.THE_END);
+			}
+		}else{
+			deleteLastWorld(Environment.NORMAL);
+			deleteLastWorld(Environment.NETHER);
+			deleteLastWorld(Environment.THE_END);
+
+			createNewWorld(Environment.NORMAL);
+			if (config.get(MainConfig.ENABLE_NETHER)) {
+				createNewWorld(Environment.NETHER);
+			}
+			if (config.get(MainConfig.ENABLE_THE_END)) {
+				createNewWorld(Environment.THE_END);
+			}
+		}
+	}
+
+	public void deleteLastWorld(Environment env){
+		String uuid = worldUuids.get(env);
+
 		if(uuid == null || uuid.equals("null")){
 			Bukkit.getLogger().info("[UhcCore] No world to delete");
 		}else{
@@ -69,17 +125,19 @@ public class MapLoader {
 		wc.generateStructures(true);
 		wc.environment(env);
 
-		if(gm.getConfiguration().getPickRandomSeedFromList() && !gm.getConfiguration().getSeeds().isEmpty()){
+		List<Long> seeds = gm.getConfig().get(MainConfig.SEEDS);
+		List<String> worlds = gm.getConfig().get(MainConfig.WORLDS);
+		if(gm.getConfig().get(MainConfig.PICK_RANDOM_SEED_FROM_LIST) && !seeds.isEmpty()){
 			if (mapSeed == -1) {
 				Random r = new Random();
-				mapSeed = gm.getConfiguration().getSeeds().get(r.nextInt(gm.getConfiguration().getSeeds().size()));
-				Bukkit.getLogger().info("[UhcCore] Picking random seed from list : "+mapName);
+				mapSeed = seeds.get(r.nextInt(seeds.size()));
+				Bukkit.getLogger().info("[UhcCore] Picking random seed from list : "+mapSeed);
 			}
 			wc.seed(mapSeed);
-		}else if(gm.getConfiguration().getPickRandomWorldFromList() && !gm.getConfiguration().getWorldsList().isEmpty()){
+		}else if(gm.getConfig().get(MainConfig.PICK_RANDOM_WORLD_FROM_LIST) && !worlds.isEmpty()){
 			if (mapName == null) {
 				Random r = new Random();
-				mapName = gm.getConfiguration().getWorldsList().get(r.nextInt(gm.getConfiguration().getWorldsList().size()));
+				mapName = worlds.get(r.nextInt(worlds.size()));
 			}
 
 			String copyWorld = mapName;
@@ -90,18 +148,12 @@ public class MapLoader {
 			copyWorld(copyWorld, worldName);
 		}
 
-		if(env.equals(Environment.NORMAL)){
-			gm.getConfiguration().setOverworldUuid(worldName);
-		}else if (env == Environment.NETHER){
-			gm.getConfiguration().setNetherUuid(worldName);
-		}else {
-			gm.getConfiguration().setTheEndUuid(worldName);
-		}
+		worldUuids.put(env, worldName);
 
 		YamlFile storage;
 
 		try{
-			storage = FileUtils.saveResourceIfNotAvailable("storage.yml");
+			storage = FileUtils.saveResourceIfNotAvailable(UhcCore.getPlugin(), "storage.yml");
 		}catch (InvalidConfigurationException ex){
 			ex.printStackTrace();
 			return;
@@ -118,8 +170,9 @@ public class MapLoader {
 		Bukkit.getServer().createWorld(wc);
 	}
 	
-	public void loadOldWorld(String uuid, Environment env){
-		
+	public void loadOldWorld(Environment env){
+		String uuid = worldUuids.get(env);
+
 		if(uuid == null || uuid.equals("null")){
 			Bukkit.getLogger().info("[UhcCore] No world to load, defaulting to default behavior");
 			this.createNewWorld(env);
@@ -133,12 +186,188 @@ public class MapLoader {
 			}
 		}
 	}
+
+	public void loadWorldUuids(){
+		YamlFile storage;
+
+		try{
+			storage = FileUtils.saveResourceIfNotAvailable(UhcCore.getPlugin(), "storage.yml");
+		}catch (InvalidConfigurationException ex){
+			ex.printStackTrace();
+			return;
+		}
+
+		worldUuids.put(Environment.NORMAL, storage.getString("worlds.normal"));
+		worldUuids.put(Environment.NETHER, storage.getString("worlds.nether"));
+		worldUuids.put(Environment.THE_END, storage.getString("worlds.the_end"));
+	}
+
+	/**
+	 * Used to obtain the UHC world uuid matching the given environment.
+	 * @param environment The environment of the world uuid you want to obtain.
+	 * @return Returns the UHC world uuid matching the environment or null if it doesn't exist.
+	 */
+	@Nullable
+	public String getUhcWorldUuid(Environment environment){
+		Validate.notNull(environment);
+		return worldUuids.get(environment);
+	}
+
+	/**
+	 * Used to obtain the UHC world matching the given environment.
+	 * @param environment The environment of the world you want to obtain.
+	 * @return Returns the UHC world matching the environment or null if it doesn't exist.
+	 */
+	@Nullable
+	public World getUhcWorld(Environment environment){
+		Validate.notNull(environment);
+
+		String worldUuid = worldUuids.get(environment);
+		if (worldUuid == null){
+			return null;
+		}
+
+		return Bukkit.getWorld(worldUuid);
+	}
+
+	public void setWorldsStartGame() {
+		World overworld = getUhcWorld(Environment.NORMAL);
+		VersionUtils.getVersionUtils().setGameRuleValue(overworld, DO_MOB_SPAWNING, true);
+
+		if(config.get(MainConfig.ENABLE_DAY_NIGHT_CYCLE)) {
+			VersionUtils.getVersionUtils().setGameRuleValue(overworld, DO_DAYLIGHT_CYCLE, true);
+			overworld.setTime(0);
+		}
+
+		if (!config.get(MainConfig.LOBBY_IN_DEFAULT_WORLD)) {
+			lobby.destroyBoundingBox();
+		}
+
+		if(config.get(MainConfig.BORDER_IS_MOVING)){
+			int endSize = config.get(MainConfig.BORDER_END_SIZE);
+			int timeToShrink = config.get(MainConfig.BORDER_TIME_TO_SHRINK);
+			int timeBeforeShrink = config.get(MainConfig.BORDER_TIME_BEFORE_SHRINK);
+
+			Bukkit.getScheduler().runTask(UhcCore.getPlugin(), new WorldBorderThread(timeBeforeShrink, endSize, timeToShrink));
+		}
+	}
+
+	public void prepareWorlds() {
+		Difficulty difficulty = config.get(MainConfig.GAME_DIFFICULTY);
+		boolean healthRegen = config.get(MainConfig.ENABLE_HEALTH_REGEN);
+		boolean announceAdvancements = config.get(MainConfig.ANNOUNCE_ADVANCEMENTS);
+		int startSize = config.get(MainConfig.BORDER_START_SIZE);
+
+		World overworld = getUhcWorld(Environment.NORMAL);
+		prepareWorld(overworld, difficulty, healthRegen, announceAdvancements, startSize*2);
+
+		VersionUtils.getVersionUtils().setGameRuleValue(overworld, DO_DAYLIGHT_CYCLE, false);
+		VersionUtils.getVersionUtils().setGameRuleValue(overworld, DO_MOB_SPAWNING, false);
+
+		overworld.setTime(6000);
+		overworld.setWeatherDuration(999999999);
+
+		if (config.get(MainConfig.ENABLE_NETHER)){
+			World nether = getUhcWorld(Environment.NETHER);
+			prepareWorld(nether, difficulty, healthRegen, announceAdvancements, startSize);
+		}
+
+		if (config.get(MainConfig.ENABLE_THE_END)){
+			World theEnd = getUhcWorld(Environment.THE_END);
+			prepareWorld(theEnd, difficulty, healthRegen, announceAdvancements, startSize*2);
+		}
+
+		if (config.get(MainConfig.LOBBY_IN_DEFAULT_WORLD)){
+			lobby = new Lobby(new Location(Bukkit.getWorlds().get(0), .5, 100,.5));
+		}else {
+			lobby = new Lobby(new Location(overworld, 0.5, 200, 0.5));
+			lobby.build();
+		}
+
+		arena = new DeathmatchArena(new Location(overworld, 10000, config.get(MainConfig.ARENA_PASTE_AT_Y), 10000));
+		arena.build();
+
+		if (config.get(MainConfig.ENABLE_UNDERGROUND_NETHER)) {
+			UndergroundNether undergoundNether = new UndergroundNether();
+			undergoundNether.build(config, getUhcWorld(Environment.NORMAL));
+		}
+	}
+
+	private void prepareWorld(World world, Difficulty difficulty, boolean healthRegen, boolean announceAdvancements, int borderSize) {
+		world.save();
+		if (!healthRegen){
+			VersionUtils.getVersionUtils().setGameRuleValue(world, NATURAL_REGENERATION, false);
+		}
+		if (!announceAdvancements && UhcCore.getVersion() >= 12){
+			VersionUtils.getVersionUtils().setGameRuleValue(world, ANNOUNCE_ADVANCEMENTS, false);
+		}
+		VersionUtils.getVersionUtils().setGameRuleValue(world, COMMAND_BLOCK_OUTPUT, false);
+		VersionUtils.getVersionUtils().setGameRuleValue(world, LOG_ADMIN_COMMANDS, false);
+		VersionUtils.getVersionUtils().setGameRuleValue(world, SEND_COMMAND_FEEDBACK, false);
+		world.setDifficulty(difficulty);
+
+		setBorderSize(world, 0, 0, borderSize);
+	}
+
+	public void setBorderSize(World world, int x, int z, double size) {
+		WorldBorder worldborder = world.getWorldBorder();
+		worldborder.setCenter(x, z);
+		worldborder.setSize(size);
+	}
 	
 	private void copyWorld(String randomWorldName, String worldName) {
 		Bukkit.getLogger().info("[UhcCore] Copying " + randomWorldName + " to " + worldName);
 		File worldDir = new File(randomWorldName);
 		if(worldDir.exists() && worldDir.isDirectory()){
 			recursiveCopy(worldDir,new File(worldName));
+		}
+	}
+
+	private void deleteOldPlayersFiles() {
+		if (Bukkit.getServer().getWorlds().isEmpty()) {
+			return;
+		}
+
+		// Deleting old players files
+		File playerdata = new File(Bukkit.getServer().getWorlds().get(0).getName()+"/playerdata");
+		if(playerdata.exists() && playerdata.isDirectory()){
+			for(File playerFile : playerdata.listFiles()){
+				playerFile.delete();
+			}
+		}
+
+		// Deleting old players stats
+		File stats = new File(Bukkit.getServer().getWorlds().get(0).getName()+"/stats");
+		if(stats.exists() && stats.isDirectory()){
+			for(File statFile : stats.listFiles()){
+				statFile.delete();
+			}
+		}
+
+		// Deleting old players advancements
+		File advancements = new File(Bukkit.getServer().getWorlds().get(0).getName()+"/advancements");
+		if(advancements.exists() && advancements.isDirectory()){
+			for(File advancementFile : advancements.listFiles()){
+				advancementFile.delete();
+			}
+		}
+	}
+
+	private void replaceOceanBiomes(){
+		BiomeMappingAPI biomeMapping = new BiomeMappingAPI();
+
+		Biome replacementBiome = Biome.PLAINS;
+
+		for (Biome biome : Biome.values()){
+			if (biome.isOcean() && biomeMapping.biomeSupported(biome)){
+				try {
+					biomeMapping.replaceBiomes(biome, replacementBiome);
+				}catch (Exception ex){
+					ex.printStackTrace();
+				}
+
+				replacementBiome = replacementBiome == Biome.PLAINS ? Biome.FOREST : Biome.PLAINS;
+			}
 		}
 	}
 	
@@ -193,107 +422,46 @@ public class MapLoader {
 	     }
 	}
 
-	public void generateChunks(final Environment env){
-		final World world;
-		GameManager gm = GameManager.getGameManager();
-		UhcWorldBorder border = gm.getWorldBorder();
-		int size;
-		chunksLoaded = 0;
-		if(env.equals(Environment.NORMAL)){
-			environment = "NORMAL";
-			world = Bukkit.getWorld(GameManager.getGameManager().getConfiguration().getOverworldUuid());
-			size = border.getStartSize();
-		}else {
-			environment = "NETHER";
-			world = Bukkit.getWorld(GameManager.getGameManager().getConfiguration().getNetherUuid());
-			size = border.getStartSize()/2;
+	public void generateChunks(Environment env){
+		World world = getUhcWorld(env);
+		int size = config.get(MainConfig.BORDER_START_SIZE);
+
+		if(env == Environment.NETHER){
+			size = size/2;
 		}
 
-		final int maxChunk = (size-size%16)/16;
-    	totalChunksToLoad = (2*((double) maxChunk)+1)*(2*((double) maxChunk)+1);
-    	final int restEveryTicks = gm.getConfiguration().getRestEveryTicks();
-    	final int chunksPerTick = gm.getConfiguration().getChunksPerTick();
-    	final int restDuraton = gm.getConfiguration().getRestDuraton();
-    	
-    	final boolean isGenerateVeins = gm.getConfiguration().getEnableGenerateVein() && env.equals(Environment.NORMAL);
-    	
-    	Bukkit.getLogger().info("[UhcCore] Generating environment "+env.toString());
-    	Bukkit.getLogger().info("[UhcCore] World border set to "+size+" blocks from lobby");
-    	Bukkit.getLogger().info("[UhcCore] Loading a total "+Math.floor(totalChunksToLoad)+" chunks, up to chunk ( "+maxChunk+" , "+maxChunk+" )");
-		Bukkit.getLogger().info("[UhcCore] Resting "+restDuraton+" ticks every "+restEveryTicks+" ticks");
-		Bukkit.getLogger().info("[UhcCore] Loading up to "+chunksPerTick+" chunks per tick");
-		Bukkit.getLogger().info("[UhcCore] Loading map "+getLoadingState()+"%");
-		
+    	int restEveryNumOfChunks = config.get(MainConfig.REST_EVERY_NUM_OF_CHUNKS);
+    	int restDuration = config.get(MainConfig.REST_DURATION);
 
-    	final VeinGenerator veinGenerator = new VeinGenerator(gm.getConfiguration().getGenerateVeins());
-    	
-		Bukkit.getScheduler().runTaskAsynchronously(UhcCore.getPlugin(), new Runnable(){
+    	boolean generateVeins = config.get(MainConfig.ENABLE_GENERATE_VEINS);
+		VeinGenerator veinGenerator = new VeinGenerator(config.get(MainConfig.GENERATE_VEINS));
+
+		ChunkLoaderThread chunkLoaderThread = new ChunkLoaderThread(world, size, restEveryNumOfChunks, restDuration) {
+			@Override
+			public void onDoneLoadingWorld() {
+				Bukkit.getLogger().info("[UhcCore] Environment "+env.toString()+" 100% loaded");
+				if(env.equals(Environment.NORMAL) && config.get(MainConfig.ENABLE_NETHER)) {
+					generateChunks(Environment.NETHER);
+				}else {
+					GameManager.getGameManager().startWaitingPlayers();
+				}
+			}
 
 			@Override
-			public void run() {				
-
-			
-				class RunnableWithParameter implements Runnable {
-			        private int i,j,nextRest;
-			        public RunnableWithParameter(int i, int j, int nextRest) { 
-			        	this.i = i; 
-			        	this.j = j; 
-			        	this.nextRest = nextRest;
-			        }
-			        
-			        public void run() {
-						
-			        	int loaded = 0;
-						while(i<= maxChunk && j <= maxChunk && loaded < chunksPerTick){
-							world.loadChunk(i, j);
-							if(isGenerateVeins){
-								veinsGenerated += veinGenerator.generateVeinsInChunk(world.getChunkAt(i, j));
-							}
-							if (!world.isChunkInUse(i, j)){
-								world.unloadChunk(i, j);
-							}
-							loaded++;
-							j++;
-						}
-						chunksLoaded=chunksLoaded+loaded;
-						
-						if(i <= maxChunk){
-							if(j > maxChunk){
-								j = -maxChunk;
-								i++;
-							}
-							
-							int delayTask = 0;
-							nextRest--;
-							if(nextRest == 0){
-								delayTask = restDuraton;
-								nextRest = restEveryTicks;
-								String message = "[UhcCore] Loading map "+getLoadingState()+"% - "+Math.floor(chunksLoaded)+"/"+Math.floor(totalChunksToLoad)+" chunks loaded";
-								if(isGenerateVeins){
-									message+=" - "+veinsGenerated+" veins generated";
-								}
-								Bukkit.getLogger().info(message);
-							}
-							
-							Bukkit.getScheduler().scheduleSyncDelayedTask(UhcCore.getPlugin(), new RunnableWithParameter(i,j,nextRest),delayTask);
-						}else{
-							chunksLoaded = totalChunksToLoad;
-							Bukkit.getLogger().info("[UhcCore] Environment "+env.toString()+" 100% loaded");
-							if(env.equals(Environment.NORMAL) && gm.getConfiguration().getEnableNether()) {
-								generateChunks(Environment.NETHER);
-							}else {
-								GameManager.getGameManager().startWaitingPlayers();
-							}
-						}
-			        }
+			public void onDoneLoadingChunk(Chunk chunk) {
+				if(generateVeins && env.equals(Environment.NORMAL)){
+					veinGenerator.generateVeinsInChunk(chunk);
 				}
-				
-				Bukkit.getScheduler().scheduleSyncDelayedTask(UhcCore.getPlugin(), new RunnableWithParameter(-maxChunk,-maxChunk,restEveryTicks),0);
-				
 			}
-			
-		});
-		
+		};
+
+		chunkLoaderThread.printSettings();
+
+		if (PaperLib.isPaper() && PaperLib.getMinecraftVersion() >= 13){
+			Bukkit.getScheduler().runTaskAsynchronously(UhcCore.getPlugin(), chunkLoaderThread);
+		}else {
+			Bukkit.getScheduler().runTask(UhcCore.getPlugin(), chunkLoaderThread);
+		}
 	}
 
 }

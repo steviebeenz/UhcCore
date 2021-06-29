@@ -1,5 +1,6 @@
 package com.gmail.val59000mc.commands;
 
+import com.gmail.val59000mc.configuration.MainConfig;
 import com.gmail.val59000mc.game.GameManager;
 import com.gmail.val59000mc.languages.Lang;
 import org.bukkit.command.Command;
@@ -24,8 +25,8 @@ public class HubCommandExecutor implements CommandExecutor{
 
         Player player = ((Player) sender).getPlayer();
 
-        if (gameManager.getConfiguration().getEnableBungeeSupport()){
-            gameManager.getPlayersManager().sendPlayerToBungeeServer(player);
+        if (gameManager.getConfig().get(MainConfig.ENABLE_BUNGEE_SUPPORT)){
+            gameManager.getPlayerManager().sendPlayerToBungeeServer(player);
             return true;
         }
 

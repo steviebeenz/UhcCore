@@ -1,16 +1,17 @@
-#Choose the percentage threshold of ready teams at which the game should start
+#Choose the percentage threshold of ready teams at which the game should start (Ignored when 'team-always-ready' is set to true)
 minimal-ready-teams-percentage-to-start: 60
 
 #Choose the threshold of ready teams at which the game should start (in combination with the percentage condition)
 minimal-ready-teams-to-start: 2
 
 #Choose the minimum number of players connected  to start the countdown when team are ready (in combination with the two above options)
-min-players-to-start: 0
+min-players-to-start: 20
 
 #Choose how much players can be in the same team, set it to 1 to play a game with no teams
 max-players-per-team: 2
 
 #If true every team will get a random team color (This color may be changed in the team color selector).
+#When disabled enemies will be red, team members green.
 use-team-colors: true
 
 # If true the display name of players will change to the color of their team (The display name shows in chat and in messages of other plugins that use display name).
@@ -29,7 +30,7 @@ force-assign-solo-player-to-team-when-starting: false
 prevent-player-from-leaving-team: false
 
 #Forces the teams to be always ready, thus preventing afk players from blocking the beginning of the game
-team-always-ready: false
+team-always-ready: true
 
 # Set to false if you don't want players to be able to rename their teams.
 enable-team-names: true
@@ -111,15 +112,15 @@ customize-game-behavior:
   enable-default-scenarios: false
 
   # You can change these for individual game using /scenarios (permission: 'uhc-core.scenarios.edit')
-  # You can choose from these scenarios: CUTCLEAN, FIRELESS, BOWLESS, RODLESS, SHIELDLESS, BLOODDIAMONDS, TIMBER, HORSELESS,
-  # TIMEBOMB, NOFALL, BESTPVE, TRIPLEORES, DOUBLEORES, TEAMINVENTORY, NOCLEAN, HASTEYBOYS, LUCKYLEAVES, BLEEDINGSWEETS,
-  # DOUBLEGOLD, GOLDLESS, SWITCHEROO, VEINMINER, DRAGONRUSH, LOVEATFIRSTSIGHT, FASTLEAVESDECAY, SKYHIGH, FASTSMELTING,
-  # SUPERHEROES, ANONYMOUS, GONEFISHING, INFINITEENCHANTS, CHILDRENLEFTUNATTENDED, SILENTNIGHT, SHAREDHEALTH, PERMAKILL,
-  # WEAKESTLINK, EGGS, NOGOINGBACK, DOUBLEDATES, FLYHIGH, RANDOMIZEDDROPS, UPSIDEDOWNCRAFTING, RANDOMIZEDCRAFTS,
-  # MONSTERSINC
+  # You can choose from these scenarios: cutclean, fireless, bowless, rodless, shieldless, blood_diamonds, timber, horseless,
+  # timebomb, no_fall, best_pve, triple_ores, double_ores, team_inventory, no_clean, hastey_boys, lucky_leaves, bleeding_sweets,
+  # double_gold, goldless, flower_power, switcheroo, vein_miner, dragon_rush, love_at_first_sight, fast_leaves_decay, sky_high,
+  # fast_smelting, superheroes, anonymous, gone_fishing, infinite_enchants, children_left_unattended, silent_night, permakill,
+  # weakest_link, eggs, no_going_back, double_dates, fly_high, randomized_drops, upside_down_crafting, randomized_crafts,
+  # monsters_inc, achievement_hunter, nine_slots, nether_start
   active-scenarios:
-    - CUTCLEAN
-    - HASTEYBOYS
+    - cutclean
+    - hastey_boys
 
   scenarios:
     # When enabled players will be able to vote for what scenarios they want to be active.
@@ -130,7 +131,7 @@ customize-game-behavior:
       # The amount of scenarios with the most votes that will get added at the start of the game.
       elected-scenarios: 3
       # Black-list, scenarios under this list can not be voted for.
-      black-list: []
+      black-list: [flower_power]
 
 
   # Set it to false to stop ghasts from dropping ghast-tears
@@ -159,7 +160,7 @@ customize-game-behavior:
     extra-half-hearts: 20
 
   # Set it to true to enable the need of a permission to use a custom craft
-  # Permissions node will be like uhc-core.craft.light-apple
+  # Permissions node will be like uhc-core.craft.light-apple (Craft name in lowercase and spaces replaced by dashes.)
   enable-crafts-permissions: false
 
   #Max building height (Set to -1 to disable).
@@ -198,10 +199,8 @@ customize-game-behavior:
   # Set to true to place skull on a fence pole instead of dropping it on the ground.
   place-head-on-fence: false
 
-
-  # Set it to false to disable the sound on player death
-  # Sound names reference list : https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Sound.html
-  sound-on-player-death: ENTITY_WITHER_SPAWN
+  # When enabled a lightning strike will happen on the place of the player death
+  stike-lightning-on-death: true
 
 # This section references optional features to allow to run in fast uhc mode ( = uhc run)
 fast-mode:
@@ -239,29 +238,34 @@ fast-mode:
     loots:
       # It will drop 1-4 torches when breaking a coal ore block
       COAL_ORE:
-        loot: '{"type":"TORCH","minimum":1,"maximum":4}'
+        loot:
+          - '{"type":"TORCH","minimum":1,"maximum":4}'
 
       # It will drop 1-2 iron ingots when breaking a iron ore block
       # It will also drop 3 xp
       IRON_ORE:
-        loot: '{"type":"IRON_INGOT","minimum":1,"maximum":2}'
+        loot:
+          - '{"type":"IRON_INGOT","minimum":1,"maximum":2}'
         add-xp: 3
 
       # It will drop 1-2 gold ingots when breaking a gold ore block
       # It will also drop 3 xp
       GOLD_ORE:
-        loot: '{"type":"GOLD_INGOT","minimum":1,"maximum":2}'
+        loot:
+          - '{"type":"GOLD_INGOT","minimum":1,"maximum":2}'
         add-xp: 3
 
       # It will drop 1-2 diamonds when breaking a diamond ore block
       # It will also drop 5 xp
       DIAMOND_ORE:
-        loot: '{"type":"DIAMOND","minimum":1,"maximum":2}'
+        loot:
+          - '{"type":"DIAMOND","minimum":1,"maximum":2}'
         add-xp: 5
 
       # It will drop 1-4 arrows when breaking a gravel block
       GRAVEL:
-        loot: '{"type":"ARROW","minimum":1,"maximum":4}'
+        loot:
+          - '{"type":"ARROW","minimum":1,"maximum":4}'
 
   # Configure customizable mob loots
   # The name of the sub-category should be an existing entity type
@@ -276,7 +280,8 @@ fast-mode:
     loots:
       #It will drop 1-2 string and 2 xp when killing sheep.
       SHEEP:
-        loot: '{"type":"STRING","minimum":1,"maximum":2}'
+        loot:
+          - '{"type":"STRING","minimum":1,"maximum":2}'
         add-xp: 2
 
 
@@ -292,11 +297,11 @@ fast-mode:
     # What percentage of leaves should drop apples? (The default vanilla percentage is 0.5%)
     percentage: 0.5
     # Set to true if you want all type of trees to drop apples. (By default only oak and dark oak trees drop apples)
-    all-trees: false
+    all-trees: true
     # Set to true if you want sheared leaves to drop apples.
     allow-shears: false
 
-  # Having this enabled means ocean biomes will be replaced with planes and forrest.  (ONLY FOR 1.8, 1.14 & 1.15!)
+  # Having this enabled means ocean biomes will be replaced with planes and forrest.
   replace-ocean-biomes: true
 
   # Having this enabled means ores will only spawn in caves, so no strip mining.
@@ -386,7 +391,7 @@ enable-kits-permissions: false
 #Options to configure the playing compass
 playing-compass:
   #If set to false the playing compass will be removed from the game.
-  enable: true
+  enable: false
   #Compass mode:
   # 1 = The compass will point towards teammates when right-clicking it
   # 2 = The compass will point towards enemy's when right-clicking it
@@ -408,18 +413,15 @@ spectating-teleport: true
 # Options to pre-generate the world
 # It's highly recommended you enable this for big games!
 pre-generate-world:
-  # If set to true, the plugin will generate every chunks inside the world border
+  # If set to true, the plugin will generate every chunks inside the world border to prevent lag during the game
   # WARNING: Setting this to false might cause players to spawn underground.
   enable: true
 
-  #Delay in ticks to suspend the generation to avoid server crashing
-  rest-every-ticks: 20
+  # Between what number of chunks the server will rest to avoid server crashing
+  rest-every-num-of-chunks-ticks: 200
 
-  #Duration of the rest in ticks
+  # Duration of the rest in ticks
   rest-duration: 20
-
-  #Maximum number of chunks loaded each tick
-  chunks-per-tick: 10
 
 #Setting up the world border
 border:
@@ -472,8 +474,14 @@ deathmatch:
     #If moving is set to true, the time in seconds for the border to shrink to end-size
     time-to-shrink: 600
 
-# Having this set to true means the name of your uhc world don't change. This is not suggested since it may couse some worlds to not load correctly.
+# Having this set to true means the name of your uhc world don't change. This is not suggested since it may cause some worlds to not load correctly.
+# It's recommended to use 'lobby-in-default-world' if you want to use NPC's
 permanent-world-names: false
+
+# Having this set to true will move your lobby to the world specified in your server.properties (spawn point: 0, 100, 0).
+# This feature is recommended for servers with big lobbies or lobbies that need entities (like NPC's).
+# Please note that when enabled you're responsible for building a lobby, no schematic or default box will be created.
+lobby-in-default-world: false
 
 #Write custom seeds to be used when creating a new map
 world-seeds:
@@ -490,7 +498,7 @@ world-seeds:
 world-list:
   #Set it to true to use that feature (you must set pick random seed to false also)
   pick-random-world-from-list: false
-  #A list of your existing world folders
+  #A list of your existing world folders (Make sure to not use the same world as in your server.properties!)
   list:
     - your_world
     - your_second_world

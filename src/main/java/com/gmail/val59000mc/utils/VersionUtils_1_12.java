@@ -1,8 +1,8 @@
 package com.gmail.val59000mc.utils;
 
 import com.gmail.val59000mc.UhcCore;
-import com.gmail.val59000mc.configuration.MainConfiguration;
 import com.gmail.val59000mc.game.GameManager;
+import com.gmail.val59000mc.maploader.MapLoader;
 import com.gmail.val59000mc.players.UhcPlayer;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -64,11 +64,6 @@ public class VersionUtils_1_12 extends VersionUtils{
     @Override
     public void setPlayerMaxHealth(Player player, double maxHealth) {
         player.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(maxHealth);
-    }
-
-    @Override
-    public void replaceOceanBiomes() {
-        Bukkit.getLogger().warning("[UhcCore] Ocean biomes won't be replaced, this feature is not supported on 1." + UhcCore.getVersion());
     }
 
     @Override
@@ -177,7 +172,7 @@ public class VersionUtils_1_12 extends VersionUtils{
     }
 
     @Override
-    public void removeRecipeFor(ItemStack item){
+    public void removeRecipe(ItemStack item, Recipe r){
         Bukkit.getLogger().info("[UhcCore] Removing craft for item "+JsonItemUtils.getItemJson(item));
 
         try{
@@ -240,9 +235,9 @@ public class VersionUtils_1_12 extends VersionUtils{
 
             d.set(registryId, array);
 
-            Bukkit.getLogger().info("[UhcCore] Banned item "+JsonItemUtils.getItemJson(item)+" registered");
+            Bukkit.getLogger().info("[UhcCore] Removed recipe for item "+JsonItemUtils.getItemJson(item));
         } catch (Exception ex){
-            Bukkit.getLogger().warning("[UhcCore] Failed to register "+JsonItemUtils.getItemJson(item)+" banned craft");
+            Bukkit.getLogger().warning("[UhcCore] Failed to remove recipe for item "+JsonItemUtils.getItemJson(item)+"!");
             ex.printStackTrace();
         }
     }
@@ -254,7 +249,7 @@ public class VersionUtils_1_12 extends VersionUtils{
         }
 
         Location loc = event.getFrom();
-        MainConfiguration cfg = GameManager.getGameManager().getConfiguration();
+        MapLoader mapLoader = GameManager.getGameManager().getMapLoader();
 
         try{
             Class<?> travelAgent = Class.forName("org.bukkit.TravelAgent");
@@ -263,14 +258,14 @@ public class VersionUtils_1_12 extends VersionUtils{
             Object travelAgentInstance = getPortalTravelAgent.invoke(event);
 
             if (event.getFrom().getWorld().getEnvironment() == World.Environment.NETHER){
-                loc.setWorld(Bukkit.getWorld(cfg.getOverworldUuid()));
+                loc.setWorld(mapLoader.getUhcWorld(World.Environment.NORMAL));
                 loc.setX(loc.getX() * 2d);
                 loc.setZ(loc.getZ() * 2d);
                 Location to = (Location) findOrCreate.invoke(travelAgentInstance, loc);
                 Validate.notNull(to, "TravelAgent returned null location!");
                 event.setTo(to);
             }else{
-                loc.setWorld(Bukkit.getWorld(cfg.getNetherUuid()));
+                loc.setWorld(mapLoader.getUhcWorld(World.Environment.NETHER));
                 loc.setX(loc.getX() / 2d);
                 loc.setZ(loc.getZ() / 2d);
                 Location to = (Location) findOrCreate.invoke(travelAgentInstance, loc);
@@ -336,6 +331,11 @@ public class VersionUtils_1_12 extends VersionUtils{
     @Override
     public void setItemUnbreakable(ItemMeta meta, boolean b){
         meta.setUnbreakable(b);
+    }
+
+    @Override
+    public void killPlayer(Player player) {
+        player.damage(player.getHealth());
     }
 
 }

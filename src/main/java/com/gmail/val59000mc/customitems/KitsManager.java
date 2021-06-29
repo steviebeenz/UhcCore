@@ -1,5 +1,6 @@
 package com.gmail.val59000mc.customitems;
 
+import com.gmail.val59000mc.UhcCore;
 import com.gmail.val59000mc.configuration.YamlFile;
 import com.gmail.val59000mc.exceptions.ParseException;
 import com.gmail.val59000mc.game.GameManager;
@@ -35,7 +36,7 @@ public class KitsManager{
 
 	public static Kit getFirstKitFor(Player player){
 		for (Kit kit : kits){
-			if (kit.canBeUsedBy(player, GameManager.getGameManager().getConfiguration())){
+			if (kit.canBeUsedBy(player, GameManager.getGameManager().getConfig())){
 				return kit;
 			}
 		}
@@ -48,7 +49,7 @@ public class KitsManager{
 		YamlFile cfg;
 
 		try{
-			cfg = FileUtils.saveResourceIfNotAvailable("kits.yml");
+			cfg = FileUtils.saveResourceIfNotAvailable(UhcCore.getPlugin(), "kits.yml");
 		}catch (InvalidConfigurationException ex){
 			ex.printStackTrace();
 			return;
@@ -128,12 +129,12 @@ public class KitsManager{
 	}
 	
 	public static void giveKitTo(Player player){
-		UhcPlayer uhcPlayer = GameManager.getGameManager().getPlayersManager().getUhcPlayer(player);
-		if(uhcPlayer.getKit() == null){
+		UhcPlayer uhcPlayer = GameManager.getGameManager().getPlayerManager().getUhcPlayer(player);
+		if(!uhcPlayer.hasKitSelected()){
 			uhcPlayer.setKit(KitsManager.getFirstKitFor(player));
 		}
 
-		if(uhcPlayer.getKit() != null && isAtLeastOneKit()){
+		if(uhcPlayer.hasKitSelected() && isAtLeastOneKit()){
 			player.getInventory().addItem(uhcPlayer.getKit().getItems());
 		}
 	}

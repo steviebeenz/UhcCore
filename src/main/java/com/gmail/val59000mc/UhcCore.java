@@ -1,28 +1,17 @@
 package com.gmail.val59000mc;
 
 import com.gmail.val59000mc.game.GameManager;
-import com.gmail.val59000mc.scenarios.Scenario;
 import com.gmail.val59000mc.utils.FileUtils;
-import com.gmail.val59000mc.configuration.YamlFile;
-import com.gmail.val59000mc.utils.TimeUtils;
 import org.bukkit.Bukkit;
-import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.plugin.java.JavaPlugin;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 public class UhcCore extends JavaPlugin{
 
 	private static final int MIN_VERSION = 8;
-	private static final int MAX_VERSION = 17;
+	private static final int MAX_VERSION = 19;
 
 	private static UhcCore pl;
 	private static int version;
-	private boolean bStats;
 	private GameManager gameManager;
 	private Updater updater;
 
@@ -31,7 +20,6 @@ public class UhcCore extends JavaPlugin{
 		pl = this;
 
 		loadServerVersion();
-		addBStats();
 
 		gameManager = new GameManager();
 		Bukkit.getScheduler().runTaskLater(this, () -> gameManager.loadNewGame(), 1);
@@ -61,110 +49,12 @@ public class UhcCore extends JavaPlugin{
 		}
 	}
 
-	private void addBStats(){
-		Metrics metrics = new Metrics(this);
-		bStats = metrics.isEnabled();
-
-		metrics.addCustomChart(new Metrics.SingleLineChart("game_count", () -> {
-			YamlFile storage = FileUtils.saveResourceIfNotAvailable("storage.yml", true);
-
-			List<Long> games = storage.getLongList("games");
-			List<Long> recentGames = new ArrayList<>();
-
-			for (long game : games){
-				if (game + TimeUtils.HOUR > System.currentTimeMillis()){
-					recentGames.add(game);
-				}
-			}
-
-			storage.set("games", recentGames);
-			storage.save();
-			return recentGames.size();
-		}));
-
-		metrics.addCustomChart(new Metrics.SimplePie("team_size", () -> String.valueOf(gameManager.getConfiguration().getMaxPlayersPerTeam())));
-
-		metrics.addCustomChart(new Metrics.SimplePie("nether", () -> (gameManager.getConfiguration().getEnableNether() ? "enabled" : "disabled")));
-
-		metrics.addCustomChart(new Metrics.AdvancedPie("scenarios", () -> {
-			Map<String, Integer> scenarios = new HashMap<>();
-
-			for (Scenario scenario : gameManager.getScenarioManager().getActiveScenarios()){
-				scenarios.put(scenario.getName(), 1);
-			}
-
-			return scenarios;
-		}));
-
-		metrics.addCustomChart(new Metrics.SimplePie("the_end", () -> (gameManager.getConfiguration().getEnableTheEnd() ? "enabled" : "disabled")));
-
-		metrics.addCustomChart(new Metrics.SimplePie("team_colors", () -> (gameManager.getConfiguration().getUseTeamColors() ? "enabled" : "disabled")));
-
-		metrics.addCustomChart(new Metrics.SimplePie("deathmatch", () -> {
-			if (!gameManager.getConfiguration().getEnableTimeLimit()){
-				return "No deathmatch";
-			}
-
-			if (gameManager.getArena().isUsed()){
-				return "Arena deathmatch";
-			}
-
-			return "Center deatchmatch";
-		}));
-
-		metrics.addCustomChart(new Metrics.SimplePie("auto_update", () -> (gameManager.getConfiguration().getEnableAutoUpdate() ? "enabled" : "disabled")));
-
-		metrics.addCustomChart(new Metrics.SimplePie("replace_oceans", () -> (gameManager.getConfiguration().getReplaceOceanBiomes() ? "enabled" : "disabled")));
-	}
-
-	// This collects the amount of games started. They are stored anonymously by https://bstats.org/ (If enabled)
-	public void addGameToStatistics(){
-		if (bStats){
-			YamlFile storage;
-
-			try{
-				storage = FileUtils.saveResourceIfNotAvailable("storage.yml");
-			}catch (InvalidConfigurationException ex){
-				ex.printStackTrace();
-				return;
-			}
-
-			List<Long> games = storage.getLongList("games");
-			List<Long> recentGames = new ArrayList<>();
-
-			for (long game : games){
-				if (game + TimeUtils.HOUR > System.currentTimeMillis()){
-					recentGames.add(game);
-				}
-			}
-
-			recentGames.add(System.currentTimeMillis());
-
-			storage.set("games", recentGames);
-			try {
-				storage.save();
-			}catch (IOException ex){
-				Bukkit.getLogger().warning("[UhcCore] Failed to save storage.yml file!");
-				ex.printStackTrace();
-			}
-		}
-	}
-
 	public static int getVersion() {
 		return version;
 	}
 	
 	public static UhcCore getPlugin(){
 		return pl;
-	}
-
-	public static boolean isSpigotServer(){
-		try {
-			Class.forName("net.md_5.bungee.api.chat.TextComponent");
-			return true;
-		}catch (ClassNotFoundException ex){
-			return false;
-		}
 	}
 
 	@Override

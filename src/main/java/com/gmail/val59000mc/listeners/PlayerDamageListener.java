@@ -1,11 +1,11 @@
 package com.gmail.val59000mc.listeners;
 
+import com.gmail.val59000mc.configuration.MainConfig;
 import com.gmail.val59000mc.game.GameManager;
 import com.gmail.val59000mc.languages.Lang;
 import com.gmail.val59000mc.players.PlayerState;
-import com.gmail.val59000mc.players.PlayersManager;
+import com.gmail.val59000mc.players.PlayerManager;
 import com.gmail.val59000mc.players.UhcPlayer;
-import org.bukkit.entity.Arrow;
 import org.bukkit.entity.LightningStrike;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -22,14 +22,14 @@ public class PlayerDamageListener implements Listener{
 
 	public PlayerDamageListener(GameManager gameManager){
 		this.gameManager = gameManager;
-		friendlyFire = gameManager.getConfiguration().getEnableFriendlyFire();
+		friendlyFire = gameManager.getConfig().get(MainConfig.ENABLE_FRIENDLY_FIRE);
 	}
 	
 	@EventHandler(priority=EventPriority.NORMAL)
 	public void onPlayerDamage(EntityDamageByEntityEvent event){
 		handlePvpAndFriendlyFire(event);
 		handleLightningStrike(event);
-		handleArrow(event);
+		handleProjectiles(event);
 	}
 
 	@EventHandler(priority=EventPriority.NORMAL)
@@ -44,7 +44,7 @@ public class PlayerDamageListener implements Listener{
 	private void handleAnyDamage(EntityDamageEvent event){
 		if(event.getEntity() instanceof Player){
 			Player player = (Player) event.getEntity();
-			PlayersManager pm = gameManager.getPlayersManager();
+			PlayerManager pm = gameManager.getPlayerManager();
 			UhcPlayer uhcPlayer = pm.getUhcPlayer(player);
 
 			PlayerState uhcPlayerState = uhcPlayer.getState();
@@ -64,7 +64,7 @@ public class PlayerDamageListener implements Listener{
 	
 	private void handlePvpAndFriendlyFire(EntityDamageByEntityEvent event){
 
-		PlayersManager pm = gameManager.getPlayersManager();
+		PlayerManager pm = gameManager.getPlayerManager();
 		
 		
 		if(event.getDamager() instanceof Player && event.getEntity() instanceof Player){
@@ -91,21 +91,20 @@ public class PlayerDamageListener implements Listener{
 		}
 	}
 	
-	private void handleArrow(EntityDamageByEntityEvent event){
-
-		PlayersManager pm = gameManager.getPlayersManager();
+	private void handleProjectiles(EntityDamageByEntityEvent event) {
+		PlayerManager pm = gameManager.getPlayerManager();
 		
-		if(event.getEntity() instanceof Player && event.getDamager() instanceof Arrow){
-			Projectile arrow = (Projectile) event.getDamager();
+		if(event.getEntity() instanceof Player && event.getDamager() instanceof Projectile){
+			Projectile projectile = (Projectile) event.getDamager();
 			final Player shot = (Player) event.getEntity();
-			if(arrow.getShooter() instanceof Player){
+			if(projectile.getShooter() instanceof Player){
 				
 				if(!gameManager.getPvp()){
 					event.setCancelled(true);
 					return;
 				}
 
-				UhcPlayer uhcDamager = pm.getUhcPlayer((Player) arrow.getShooter());
+				UhcPlayer uhcDamager = pm.getUhcPlayer((Player) projectile.getShooter());
 				UhcPlayer uhcDamaged = pm.getUhcPlayer(shot);
 
 				if(!friendlyFire && uhcDamager.getState().equals(PlayerState.PLAYING) && uhcDamager.isInTeamWith(uhcDamaged)){

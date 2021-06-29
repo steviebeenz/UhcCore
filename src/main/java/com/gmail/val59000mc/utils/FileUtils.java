@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.InvalidConfigurationException;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.net.ssl.HttpsURLConnection;
 import java.io.*;
@@ -23,44 +24,18 @@ public class FileUtils{
     private static final String API_URL = "https://paste.md-5.net/documents";
     private static final String PASTE_URL_DOMAIN = "https://paste.md-5.net/";
 
-    public static YamlFile saveResourceIfNotAvailable(String fileName) throws InvalidConfigurationException{
-        return saveResourceIfNotAvailable(fileName, fileName, false);
+    public static YamlFile saveResourceIfNotAvailable(JavaPlugin plugin, String fileName) throws InvalidConfigurationException{
+        return saveResourceIfNotAvailable(plugin, fileName, fileName);
     }
 
-    public static YamlFile saveResourceIfNotAvailable(String fileName, String sourceName) throws InvalidConfigurationException{
-        return saveResourceIfNotAvailable(fileName, sourceName, false);
-    }
-
-    public static YamlFile saveResourceIfNotAvailable(String fileName, boolean disableLogging) throws InvalidConfigurationException{
-        return saveResourceIfNotAvailable(fileName, fileName, disableLogging);
-    }
-
-    public static YamlFile saveResourceIfNotAvailable(String fileName, String sourceName, boolean disableLogging) throws InvalidConfigurationException{
-        File file = new File(UhcCore.getPlugin().getDataFolder(), fileName);
-
-        if (!disableLogging) {
-            Bukkit.getLogger().info("[UhcCore] Loading " + file.toString());
-        }
-
-        if (!file.exists()){
-            // save resource
-            UhcCore.getPlugin().saveResource(sourceName, false);
-        }
-
-        if (!fileName.equals(sourceName)){
-            File sourceFile = new File(UhcCore.getPlugin().getDataFolder(), sourceName);
-            sourceFile.renameTo(file);
-        }
-
-        if (!file.exists()){
-            Bukkit.getLogger().severe("[UhcCore] Failed to save file: " + fileName);
-        }
+    public static YamlFile saveResourceIfNotAvailable(JavaPlugin plugin, String fileName, String sourceName) throws InvalidConfigurationException{
+        File file = getResourceFile(plugin, fileName, sourceName);
 
         YamlFile yamlFile = new YamlFile(file);
         try {
             yamlFile.load();
         }catch (IOException | InvalidConfigurationException ex){
-            Bukkit.getLogger().severe("[UhcCore] Failed to load " + fileName + ", there might be an error in the yaml syntax.");
+            Bukkit.getLogger().severe("Failed to load " + fileName + ", there might be an error in the yaml syntax.");
             if (ex instanceof InvalidConfigurationException){
                 throw (InvalidConfigurationException) ex;
             }
@@ -72,11 +47,35 @@ public class FileUtils{
         return yamlFile;
     }
 
+    public static File getResourceFile(JavaPlugin plugin, String fileName) {
+        return getResourceFile(plugin, fileName, fileName);
+    }
+
+    public static File getResourceFile(JavaPlugin plugin, String fileName, String sourceName) {
+        File file = new File(plugin.getDataFolder(), fileName);
+
+        if (!file.exists()){
+            // save resource
+            plugin.saveResource(sourceName, false);
+        }
+
+        if (!fileName.equals(sourceName)){
+            File sourceFile = new File(plugin.getDataFolder(), sourceName);
+            sourceFile.renameTo(file);
+        }
+
+        if (!file.exists()){
+            Bukkit.getLogger().severe("Failed to save file: " + fileName);
+        }
+
+        return file;
+    }
+
     public static void removeScheduledDeletionFiles(){
         YamlFile storage;
 
         try{
-            storage = FileUtils.saveResourceIfNotAvailable("storage.yml");
+            storage = saveResourceIfNotAvailable(UhcCore.getPlugin(), "storage.yml");
         }catch (InvalidConfigurationException ex){
             ex.printStackTrace();
             return;
@@ -127,7 +126,7 @@ public class FileUtils{
         YamlFile storage;
 
         try{
-            storage = FileUtils.saveResourceIfNotAvailable("storage.yml");
+            storage = FileUtils.saveResourceIfNotAvailable(UhcCore.getPlugin(), "storage.yml");
         }catch (InvalidConfigurationException ex){
             ex.printStackTrace();
             return;

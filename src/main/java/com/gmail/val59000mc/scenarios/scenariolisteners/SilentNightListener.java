@@ -1,5 +1,6 @@
 package com.gmail.val59000mc.scenarios.scenariolisteners;
 
+import com.gmail.val59000mc.configuration.Dependencies;
 import com.gmail.val59000mc.events.UhcTimeEvent;
 import com.gmail.val59000mc.exceptions.UhcPlayerNotOnlineException;
 import com.gmail.val59000mc.languages.Lang;
@@ -10,6 +11,7 @@ import com.gmail.val59000mc.scenarios.ScenarioListener;
 import com.gmail.val59000mc.utils.ProtocolUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.World;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.PlayerDeathEvent;
@@ -28,14 +30,14 @@ public class SilentNightListener extends ScenarioListener{
     @Override
     public void onEnable() {
         // Disable Anonymous when enabled.
-        if (isActivated(Scenario.ANONYMOUS)){
-            getScenarioManager().removeScenario(Scenario.ANONYMOUS);
+        if (isEnabled(Scenario.ANONYMOUS)){
+            getScenarioManager().disableScenario(Scenario.ANONYMOUS);
         }
 
         // Check for ProtocolLib
-        if (!getGameManager().getConfiguration().getProtocolLibLoaded()){
+        if (!Dependencies.getProtocolLibLoaded()){
             Bukkit.broadcastMessage(ChatColor.RED + "[UhcCore] For Anonymous ProtocolLib needs to be installed!");
-            getScenarioManager().removeScenario(Scenario.SILENTNIGHT);
+            getScenarioManager().disableScenario(Scenario.SILENT_NIGHT);
         }
     }
 
@@ -65,7 +67,7 @@ public class SilentNightListener extends ScenarioListener{
         if (nightMode){
             e.setJoinMessage(null);
 
-            UhcPlayer uhcPlayer = getPlayersManager().getUhcPlayer(e.getPlayer());
+            UhcPlayer uhcPlayer = getPlayerManager().getUhcPlayer(e.getPlayer());
 
             if (uhcPlayer.getState() == PlayerState.PLAYING){
                 ProtocolUtils.setPlayerHeaderFooter(e.getPlayer(), getTabHeader(true), "");
@@ -94,13 +96,13 @@ public class SilentNightListener extends ScenarioListener{
 
     private void setMode(boolean night){
         if (night){
-            getScenarioManager().addScenario(Scenario.ANONYMOUS);
+            getScenarioManager().enableScenario(Scenario.ANONYMOUS);
         }else{
-            getScenarioManager().removeScenario(Scenario.ANONYMOUS);
+            getScenarioManager().disableScenario(Scenario.ANONYMOUS);
         }
 
         String tabHeader = getTabHeader(night);
-        for (UhcPlayer uhcPlayer : getPlayersManager().getOnlinePlayingPlayers()){
+        for (UhcPlayer uhcPlayer : getPlayerManager().getOnlinePlayingPlayers()){
             try {
                 ProtocolUtils.setPlayerHeaderFooter(uhcPlayer.getPlayer(), tabHeader, "");
             }catch (UhcPlayerNotOnlineException ex){
@@ -122,7 +124,7 @@ public class SilentNightListener extends ScenarioListener{
     }
 
     private boolean isNight(){
-        long time = getGameManager().getLobby().getLoc().getWorld().getTime();
+        long time = getGameManager().getMapLoader().getUhcWorld(World.Environment.NORMAL).getTime();
         return time > 12000;
     }
 

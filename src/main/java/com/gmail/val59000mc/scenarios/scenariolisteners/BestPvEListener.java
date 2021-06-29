@@ -1,7 +1,7 @@
 package com.gmail.val59000mc.scenarios.scenariolisteners;
 
 import com.gmail.val59000mc.UhcCore;
-import com.gmail.val59000mc.configuration.MainConfiguration;
+import com.gmail.val59000mc.configuration.MainConfig;
 import com.gmail.val59000mc.events.UhcStartedEvent;
 import com.gmail.val59000mc.exceptions.UhcPlayerNotOnlineException;
 import com.gmail.val59000mc.game.GameManager;
@@ -38,9 +38,9 @@ public class BestPvEListener extends ScenarioListener implements Runnable{
     @Override
     public void onEnable(){
         maxHealth = 20;
-        MainConfiguration cfg = getGameManager().getConfiguration();
-        if (cfg.getEnableExtraHalfHearts()){
-            maxHealth += cfg.getExtraHalfHearts();
+        MainConfig cfg = getGameManager().getConfig();
+        if (cfg.get(MainConfig.ENABLE_EXTRA_HALF_HEARTS)){
+            maxHealth += cfg.get(MainConfig.EXTRA_HALF_HEARTS);
         }
     }
 
@@ -55,7 +55,7 @@ public class BestPvEListener extends ScenarioListener implements Runnable{
     public void onGameStart(UhcStartedEvent e){
         taskId = Bukkit.getScheduler().scheduleSyncDelayedTask(UhcCore.getPlugin(), this, delay*TimeUtils.SECOND_TICKS);
 
-        for (UhcPlayer uhcPlayer : e.getPlayersManager().getPlayersList()){
+        for (UhcPlayer uhcPlayer : e.getPlayerManager().getPlayersList()){
             pveList.put(uhcPlayer, true);
             uhcPlayer.sendMessage(Lang.SCENARIO_BESTPVE_ADDED);
         }
@@ -76,7 +76,7 @@ public class BestPvEListener extends ScenarioListener implements Runnable{
         }
 
         Player p = (Player) e.getEntity();
-        UhcPlayer uhcPlayer = GameManager.getGameManager().getPlayersManager().getUhcPlayer(p);
+        UhcPlayer uhcPlayer = GameManager.getGameManager().getPlayerManager().getUhcPlayer(p);
 
         if (!pveList.containsKey(uhcPlayer)){
             return; // Only playing players on list
@@ -101,7 +101,7 @@ public class BestPvEListener extends ScenarioListener implements Runnable{
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent e){
         if (e.getEntity().getKiller() != null){
-            UhcPlayer uhcPlayer = GameManager.getGameManager().getPlayersManager().getUhcPlayer(e.getEntity().getKiller());
+            UhcPlayer uhcPlayer = GameManager.getGameManager().getPlayerManager().getUhcPlayer(e.getEntity().getKiller());
 
             if (!pveList.containsKey(uhcPlayer)){
                 return; // Only playing players on list
@@ -116,7 +116,7 @@ public class BestPvEListener extends ScenarioListener implements Runnable{
 
     @Override
     public void run(){
-        for (UhcPlayer uhcPlayer : GameManager.getGameManager().getPlayersManager().getOnlinePlayingPlayers()){
+        for (UhcPlayer uhcPlayer : GameManager.getGameManager().getPlayerManager().getOnlinePlayingPlayers()){
             Player player;
 
             try{

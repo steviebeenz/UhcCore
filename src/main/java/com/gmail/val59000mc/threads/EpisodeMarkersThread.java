@@ -1,6 +1,7 @@
 package com.gmail.val59000mc.threads;
 
 import com.gmail.val59000mc.UhcCore;
+import com.gmail.val59000mc.configuration.MainConfig;
 import com.gmail.val59000mc.game.GameManager;
 import com.gmail.val59000mc.languages.Lang;
 import com.gmail.val59000mc.utils.UniversalSound;
@@ -14,7 +15,7 @@ public class EpisodeMarkersThread implements Runnable{
 
     public EpisodeMarkersThread(GameManager gameManager) {
         this.gameManager = gameManager;
-        this.delay = gameManager.getConfiguration().getEpisodeMarkersDelay() * 20;
+        this.delay = gameManager.getConfig().get(MainConfig.EPISODE_MARKERS_DELAY) * 20;
         this.episodeNr = 0;
     }
 
@@ -22,7 +23,7 @@ public class EpisodeMarkersThread implements Runnable{
     public void run() {
         if (episodeNr > 0) {
             gameManager.broadcastInfoMessage(Lang.DISPLAY_EPISODE_MARK.replace("%episode%", episodeNr + ""));
-            gameManager.getPlayersManager().playSoundToAll(UniversalSound.FIREWORK_LAUNCH,1,1);
+            gameManager.getPlayerManager().playSoundToAll(UniversalSound.FIREWORK_LAUNCH,1,1);
         }
         episodeNr ++;
         gameManager.setEpisodeNumber(episodeNr);

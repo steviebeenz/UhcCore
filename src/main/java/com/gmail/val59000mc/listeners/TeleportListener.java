@@ -1,9 +1,11 @@
 package com.gmail.val59000mc.listeners;
 
+import com.gmail.val59000mc.configuration.MainConfig;
 import com.gmail.val59000mc.game.GameManager;
 import com.gmail.val59000mc.game.GameState;
 import com.gmail.val59000mc.languages.Lang;
 import com.gmail.val59000mc.scenarios.Scenario;
+import com.gmail.val59000mc.utils.LocationUtils;
 import com.gmail.val59000mc.utils.VersionUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -35,14 +37,14 @@ public class TeleportListener implements Listener{
 		
 		if (event.getCause() == TeleportCause.NETHER_PORTAL) {
 
-			if (!gm.getConfiguration().getEnableNether()){
+			if (!gm.getConfig().get(MainConfig.ENABLE_NETHER)){
 				player.sendMessage(Lang.PLAYERS_NETHER_OFF);
 				event.setCancelled(true);
 				return;
 			}
 
 			// No Going back!
-			if (gm.getScenarioManager().isActivated(Scenario.NOGOINGBACK) && event.getFrom().getWorld().getEnvironment() == Environment.NETHER){
+			if (gm.getScenarioManager().isEnabled(Scenario.NO_GOING_BACK) && event.getFrom().getWorld().getEnvironment() == Environment.NETHER){
 				player.sendMessage(Lang.SCENARIO_NOGOINGBACK_ERROR);
 				event.setCancelled(true);
 				return;
@@ -53,9 +55,10 @@ public class TeleportListener implements Listener{
 
 		}else if (event.getCause() == TeleportCause.END_PORTAL){
 
-			if (gm.getConfiguration().getEnableTheEnd() && event.getFrom().getWorld().getEnvironment() == Environment.NORMAL){
+			if (gm.getConfig().get(MainConfig.ENABLE_THE_END) && event.getFrom().getWorld().getEnvironment() == Environment.NORMAL){
 				// Teleport to end
-				Location end = new Location(Bukkit.getWorld(gm.getConfiguration().getTheEndUuid()), -42, 48, -18);
+				World endWorld = gm.getMapLoader().getUhcWorld(Environment.THE_END);
+				Location end = new Location(endWorld, -42, 48, -18);
 
 				createEndSpawnAir(end);
 				createEndSpawnObsidian(end);
@@ -70,11 +73,11 @@ public class TeleportListener implements Listener{
 		GameManager gm = GameManager.getGameManager();
 		Player player = e.getPlayer();
 
-		if (gm.getConfiguration().getEnableTheEnd() && e.getFrom().getName().equals(gm.getConfiguration().getTheEndUuid())){
-			World world = Bukkit.getServer().getWorld(gm.getConfiguration().getOverworldUuid());
+		if (gm.getConfig().get(MainConfig.ENABLE_THE_END) && e.getFrom().getName().equals(gm.getMapLoader().getUhcWorldUuid(Environment.THE_END))){
+			World world = gm.getMapLoader().getUhcWorld(Environment.NORMAL);
 
-			double maxDistance = 0.9 * gm.getWorldBorder().getCurrentSize();
-			Location loc = gm.getPlayersManager().findRandomSafeLocation(world, maxDistance);
+			double maxDistance = 0.9 * gm.getMapLoader().getBorderSize();
+			Location loc = LocationUtils.findRandomSafeLocation(world, maxDistance);
 
 			player.teleport(loc);
 		}
@@ -82,7 +85,7 @@ public class TeleportListener implements Listener{
 		
 	@EventHandler
 	public void onPlayerTeleport(PlayerTeleportEvent e){
-		if (e.getCause() == TeleportCause.SPECTATE && !GameManager.getGameManager().getConfiguration().getSpectatingTeleport()){
+		if (e.getCause() == TeleportCause.SPECTATE && !GameManager.getGameManager().getConfig().get(MainConfig.SPECTATING_TELEPORT)){
 			Player player = e.getPlayer();
 			if (!player.hasPermission("uhc-core.commands.teleport-admin")){
 				e.setCancelled(true);

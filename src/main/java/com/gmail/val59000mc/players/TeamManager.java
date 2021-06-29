@@ -1,6 +1,7 @@
 package com.gmail.val59000mc.players;
 
 import com.gmail.val59000mc.exceptions.UhcTeamException;
+import com.gmail.val59000mc.game.handlers.ScoreboardHandler;
 import com.gmail.val59000mc.languages.Lang;
 import com.gmail.val59000mc.utils.CompareUtils;
 import org.bukkit.ChatColor;
@@ -35,12 +36,14 @@ public class TeamManager{
         ChatColor.ITALIC.toString() + ChatColor.UNDERLINE.toString() + ChatColor.BOLD.toString()
     };
 
-    private final PlayersManager playersManager;
+    private final PlayerManager playerManager;
+    private final ScoreboardHandler scoreboardHandler;
     private int lastTeamNumber;
     private List<String> prefixes;
 
-    public TeamManager(PlayersManager playersManager){
-        this.playersManager = playersManager;
+    public TeamManager(PlayerManager playerManager, ScoreboardHandler scoreboardHandler){
+        this.playerManager = playerManager;
+        this.scoreboardHandler = scoreboardHandler;
         lastTeamNumber = 0;
         loadPrefixes();
     }
@@ -48,7 +51,7 @@ public class TeamManager{
     public List<UhcTeam> getPlayingUhcTeams(){
         List<UhcTeam> teams = new ArrayList<>();
         for(UhcTeam team : getUhcTeams()){
-            if (!team.getPlayingMembers().isEmpty()){
+            if (team.getPlayingMemberCount() != 0){
                 teams.add(team);
             }
         }
@@ -57,7 +60,7 @@ public class TeamManager{
 
     public List<UhcTeam> getUhcTeams(){
         List<UhcTeam> teams = new ArrayList<>();
-        for(UhcPlayer player : playersManager.getPlayersList()){
+        for(UhcPlayer player : playerManager.getPlayersList()){
 
             UhcTeam team = player.getTeam();
             if(!teams.contains(team)) {
@@ -77,6 +80,9 @@ public class TeamManager{
 
         try{
             team.join(uhcPlayer);
+
+            // Update player tab
+            scoreboardHandler.updatePlayerOnTab(uhcPlayer);
         }catch (UhcTeamException ex){
             uhcPlayer.sendMessage(ex.getMessage());
         }

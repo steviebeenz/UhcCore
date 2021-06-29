@@ -1,6 +1,6 @@
 package com.gmail.val59000mc.players;
 
-import com.gmail.val59000mc.configuration.MainConfiguration;
+import com.gmail.val59000mc.configuration.MainConfig;
 import com.gmail.val59000mc.exceptions.UhcPlayerNotOnlineException;
 import com.gmail.val59000mc.exceptions.UhcTeamException;
 import com.gmail.val59000mc.game.GameManager;
@@ -16,6 +16,8 @@ import org.bukkit.potion.PotionEffectType;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class UhcTeam {
 
@@ -29,11 +31,11 @@ public class UhcTeam {
 
 	public UhcTeam(UhcPlayer uhcPlayer) {
 		members = new ArrayList<>();
-		readyToStart = GameManager.getGameManager().getConfiguration().getTeamAlwaysReady();
+		members.add(uhcPlayer);
+		readyToStart = false;
 		teamNumber = GameManager.getGameManager().getTeamManager().getNewTeamNumber();
 		teamName = "Team " + teamNumber;
 		prefix = GameManager.getGameManager().getTeamManager().getTeamPrefix();
-		members.add(uhcPlayer);
 		teamInventory = Bukkit.createInventory(null, 9*3, ChatColor.GOLD + "Team Inventory");
 	}
 
@@ -70,13 +72,7 @@ public class UhcTeam {
 	}
 
 	public void sendMessage(String message){
-		for(UhcPlayer member: members){
-			try {
-				member.getPlayer().sendMessage(message);
-			} catch (UhcPlayerNotOnlineException e) {
-				// No message sent to offline players
-			}
-		}
+		members.forEach(p -> p.sendMessage(message));
 	}
 
 	public boolean contains(UhcPlayer player){
@@ -87,6 +83,10 @@ public class UhcTeam {
 		return members;
 	}
 
+	public List<UhcPlayer> getMembers(Predicate<UhcPlayer> filter){
+		return members.stream().filter(filter).collect(Collectors.toList());
+	}
+
 	public int getMemberCount(){
 		return members.size();
 	}
@@ -95,46 +95,25 @@ public class UhcTeam {
 		return getMemberCount() == 1;
 	}
 
+	public int getPlayingMemberCount(){
+		return getMembers(UhcPlayer::isPlaying).size();
+	}
+
 	public boolean isSpectating(){
 		return isSolo() && getLeader().getState() == PlayerState.DEAD;
 	}
 
 	public int getKills(){
-		int i = 0;
-		for (UhcPlayer uhcPlayer : members){
-			i += uhcPlayer.kills;
-		}
-		return i;
-	}
-
-	public List<UhcPlayer> getDeadMembers(){
-		List<UhcPlayer> deadMembers = new ArrayList<>();
-		for(UhcPlayer uhcPlayer : getMembers()){
-			if(uhcPlayer.getState().equals(PlayerState.DEAD)){
-				deadMembers.add(uhcPlayer);
-			}
-		}
-		return deadMembers;
-	}
-
-	public List<UhcPlayer> getPlayingMembers(){
-		List<UhcPlayer> playingMembers = new ArrayList<>();
-		for(UhcPlayer uhcPlayer : getMembers()){
-			if(uhcPlayer.getState().equals(PlayerState.PLAYING)){
-				playingMembers.add(uhcPlayer);
-			}
-		}
-		return playingMembers;
+		return members.stream()
+				.mapToInt(UhcPlayer::getKills)
+				.sum();
 	}
 
 	public List<UhcPlayer> getOnlinePlayingMembers(){
-		List<UhcPlayer> playingMembers = new ArrayList<>();
-		for(UhcPlayer uhcPlayer : getMembers()){
-			if(uhcPlayer.getState().equals(PlayerState.PLAYING) && uhcPlayer.isOnline()){
-				playingMembers.add(uhcPlayer);
-			}
-		}
-		return playingMembers;
+		return members.stream()
+				.filter(UhcPlayer::isPlaying)
+				.filter(UhcPlayer::isOnline)
+				.collect(Collectors.toList());
 	}
 
 	public List<String> getMembersNames(){
@@ -148,8 +127,8 @@ public class UhcTeam {
 	public void join(UhcPlayer player) throws UhcTeamException {
 		if(player.canJoinATeam()){
 			if(isFull()){
-				player.sendMessage(Lang.TEAM_MESSAGE_FULL.replace("%player%", player.getName()).replace("%leader%", getLeader().getName()).replace("%limit%", ""+ GameManager.getGameManager().getConfiguration().getMaxPlayersPerTeam()));
-				throw new UhcTeamException(Lang.TEAM_MESSAGE_FULL.replace("%player%", player.getName()).replace("%leader%", getLeader().getName()).replace("%limit%", ""+ GameManager.getGameManager().getConfiguration().getMaxPlayersPerTeam()));
+				player.sendMessage(Lang.TEAM_MESSAGE_FULL.replace("%player%", player.getName()).replace("%leader%", getLeader().getName()).replace("%limit%", ""+ GameManager.getGameManager().getConfig().get(MainConfig.MAX_PLAYERS_PER_TEAM)));
+				throw new UhcTeamException(Lang.TEAM_MESSAGE_FULL.replace("%player%", player.getName()).replace("%leader%", getLeader().getName()).replace("%limit%", ""+ GameManager.getGameManager().getConfig().get(MainConfig.MAX_PLAYERS_PER_TEAM)));
 			}else{
 				player.sendMessage(Lang.TEAM_MESSAGE_JOIN_AS_PLAYER.replace("%leader%", getLeader().getName()));
 				for(UhcPlayer teamMember : getMembers()){
@@ -157,10 +136,6 @@ public class UhcTeam {
 				}
 				getMembers().add(player);
 				player.setTeam(this);
-
-				// Update player tab
-				ScoreboardManager scoreboardManager = GameManager.getGameManager().getScoreboardManager();
-				scoreboardManager.updatePlayerTab(player);
 			}
 		}else{
 			throw new UhcTeamException(Lang.TEAM_MESSAGE_PLAYER_ALREADY_IN_TEAM.replace("%player%", player.getName()));
@@ -168,8 +143,8 @@ public class UhcTeam {
 	}
 
 	public boolean isFull() {
-		MainConfiguration cfg = GameManager.getGameManager().getConfiguration();
-		return (cfg.getMaxPlayersPerTeam() == getMembers().size());
+		MainConfig cfg = GameManager.getGameManager().getConfig();
+		return (cfg.get(MainConfig.MAX_PLAYERS_PER_TEAM) == getMembers().size());
 	}
 
 	public void leave(UhcPlayer player) throws UhcTeamException {
@@ -179,8 +154,6 @@ public class UhcTeam {
 			getMembers().remove(player);
 			player.setTeam(new UhcTeam(player));
 
-			// Update player tab
-			GameManager.getGameManager().getScoreboardManager().updatePlayerTab(player);
 			UhcPlayer newLeader = getMembers().get(0);
 
 			if(isLeader){
@@ -203,46 +176,19 @@ public class UhcTeam {
 		return getMembers().get(0);
 	}
 
-	public void setReady(boolean value){
-		this.readyToStart = value;
-	}
-
 	public boolean isReadyToStart(){
 		return readyToStart;
 	}
 
 	public boolean isOnline(){
-		int membersOnline = 0;
-		for(UhcPlayer uhcPlayer : getMembers()){
-			try{
-				Player player = uhcPlayer.getPlayer();
-				if(player.isOnline())
-					membersOnline++;
-			}catch(UhcPlayerNotOnlineException e){
-				// not adding playing to count
-			}
-		}
-		return (membersOnline > 0);
+		return members.stream().anyMatch(UhcPlayer::isOnline);
 	}
 
 	public void changeReadyState(){
-		setReady(!isReadyToStart());
-		for(UhcPlayer teamMember : getMembers()){
-			if(isReadyToStart()) {
-				teamMember.sendMessage(Lang.TEAM_MESSAGE_NOW_READY);
-			}else {
-				teamMember.sendMessage(Lang.TEAM_MESSAGE_NOW_NOT_READY);
-			}
-		}
-	}
+		readyToStart = !readyToStart;
 
-	public List<UhcPlayer> getOtherMembers(UhcPlayer excludedPlayer){
-		List<UhcPlayer> otherMembers = new ArrayList<>();
-		for(UhcPlayer uhcPlayer : getMembers()){
-			if(!uhcPlayer.equals(excludedPlayer))
-				otherMembers.add(uhcPlayer);
-		}
-		return otherMembers;
+		String message = readyToStart ? Lang.TEAM_MESSAGE_NOW_READY : Lang.TEAM_MESSAGE_NOW_NOT_READY;
+		sendMessage(message);
 	}
 
 	public void regenTeam(boolean doubleRegen) {

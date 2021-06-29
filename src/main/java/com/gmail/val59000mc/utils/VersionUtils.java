@@ -17,6 +17,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
@@ -44,7 +45,7 @@ public abstract class VersionUtils{
                 versionUtils = new VersionUtils_1_13();
             }else if (version == 14){
                 versionUtils = new VersionUtils_1_14();
-            }else{
+            }else {
                 versionUtils = new VersionUtils_1_15();
             }
         }
@@ -60,8 +61,6 @@ public abstract class VersionUtils{
     public abstract Objective registerObjective(Scoreboard scoreboard, String name, String criteria);
 
     public abstract void setPlayerMaxHealth(Player player, double maxHealth);
-
-    public abstract void replaceOceanBiomes();
 
     public abstract void setGameRuleValue(World world, String gameRule, Object value);
 
@@ -92,7 +91,12 @@ public abstract class VersionUtils{
      */
     public abstract void setChestSide(Chest chest, boolean left);
 
-    public abstract void removeRecipeFor(ItemStack item);
+    /**
+     * Removes item recipe
+     * @param item The item you want to remove the recipe for.
+     * @param recipe The recipe you want to remove. (Can be null when using 'item')
+     */
+    public abstract void removeRecipe(ItemStack item, Recipe recipe);
 
     public abstract void handleNetherPortalEvent(PlayerPortalEvent event);
 
@@ -116,5 +120,7 @@ public abstract class VersionUtils{
     public abstract ItemMeta applySuspiciousStewEffects(ItemMeta meta, JsonArray effects) throws ParseException;
 
     public abstract void setItemUnbreakable(ItemMeta meta, boolean b);
+
+    public abstract void killPlayer(Player player);
 
 }

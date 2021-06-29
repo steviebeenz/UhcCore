@@ -1,9 +1,9 @@
 package com.gmail.val59000mc.listeners;
 
-import com.gmail.val59000mc.configuration.MainConfiguration;
+import com.gmail.val59000mc.configuration.MainConfig;
 import com.gmail.val59000mc.game.GameManager;
 import com.gmail.val59000mc.languages.Lang;
-import com.gmail.val59000mc.players.PlayersManager;
+import com.gmail.val59000mc.players.PlayerManager;
 import com.gmail.val59000mc.players.UhcPlayer;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
@@ -11,6 +11,8 @@ import org.bukkit.entity.Zombie;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+
+import java.util.Optional;
 
 public class EntityDamageListener implements Listener{
 
@@ -30,34 +32,31 @@ public class EntityDamageListener implements Listener{
             return;
         }
 
-        MainConfiguration cfg = gameManager.getConfiguration();
-        PlayersManager pm = gameManager.getPlayersManager();
+        MainConfig cfg = gameManager.getConfig();
+        PlayerManager pm = gameManager.getPlayerManager();
         
         // Offline players are disabled
-        if (!cfg.getSpawnOfflinePlayers()){
+        if (!cfg.get(MainConfig.SPAWN_OFFLINE_PLAYERS)){
             return;
         }
 
         Zombie zombie = (Zombie) e.getEntity();
         UhcPlayer damager = pm.getUhcPlayer((Player) e.getDamager());
-        UhcPlayer owner = null;
         
         // Find zombie owner
-        for (UhcPlayer uhcPlayer : pm.getPlayersList()){
-            if (uhcPlayer.getOfflineZombie() != null && uhcPlayer.getOfflineZombie() == zombie){
-                owner = uhcPlayer;
-                break;
-            }
-        }
+        Optional<UhcPlayer> owner = pm.getPlayersList()
+                .stream()
+                .filter(uhcPlayer -> uhcPlayer.getOfflineZombieUuid() != null && uhcPlayer.getOfflineZombieUuid().equals(zombie.getUniqueId()))
+                .findFirst();
         
         // Not a offline player
-        if (owner == null){
+        if (!owner.isPresent()){
             return;
         }
         
         boolean pvp = gameManager.getPvp();
-        boolean isTeamMember = owner.isInTeamWith(damager);
-        boolean friendlyFire = cfg.getEnableFriendlyFire();
+        boolean isTeamMember = owner.get().isInTeamWith(damager);
+        boolean friendlyFire = cfg.get(MainConfig.ENABLE_FRIENDLY_FIRE);
         
         // If PvP is false or is team member & friendly fire is off
         if (!pvp || (isTeamMember && !friendlyFire)){

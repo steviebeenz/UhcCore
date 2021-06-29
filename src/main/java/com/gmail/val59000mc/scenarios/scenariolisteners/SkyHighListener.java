@@ -43,7 +43,7 @@ public class SkyHighListener extends ScenarioListener{
             if (timeUntilFirstRun < 0){
                 timeUntilFirstRun = 0;
             }
-            taskId = Bukkit.getScheduler().scheduleSyncDelayedTask(UhcCore.getPlugin(), new SkyHighThread(this), timeUntilFirstRun);
+            taskId = Bukkit.getScheduler().scheduleSyncDelayedTask(UhcCore.getPlugin(), new SkyHighThread(this), timeUntilFirstRun*TimeUtils.SECOND_TICKS);
         }
     }
 
@@ -66,7 +66,7 @@ public class SkyHighListener extends ScenarioListener{
         @Override
         public void run() {
             // damage players
-            for (UhcPlayer uhcPlayer : GameManager.getGameManager().getPlayersManager().getOnlinePlayingPlayers()){
+            for (UhcPlayer uhcPlayer : GameManager.getGameManager().getPlayerManager().getOnlinePlayingPlayers()){
                 if (uhcPlayer.getState() == PlayerState.PLAYING) {
                     try {
                         Player player = uhcPlayer.getPlayer();

@@ -1,12 +1,9 @@
 package com.gmail.val59000mc.utils;
 
 import com.gmail.val59000mc.UhcCore;
-import org.apache.commons.lang.Validate;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.inventory.ItemStack;
-
-import javax.annotation.Nullable;
 
 public enum UniversalMaterial{
     WHITE_WOOL("WOOL", "WHITE_WOOL", (short) 0),
@@ -65,7 +62,20 @@ public enum UniversalMaterial{
     GOLD_INGOT,
     GOLD_ORE,
     ARROW,
+    COPPER_INGOT,
+    NETHERITE_SCRAP,
     COAL_ORE,
+    COPPER_ORE,
+    NETHER_GOLD_ORE,
+    ANCIENT_DEBRIS,
+    DEEPSLATE_COAL_ORE,
+    DEEPSLATE_COPPER_ORE,
+    DEEPSLATE_REDSTONE_ORE,
+    DEEPSLATE_LAPIS_ORE,
+    DEEPSLATE_IRON_ORE,
+    DEEPSLATE_GOLD_ORE,
+    DEEPSLATE_EMERALD_ORE,
+    DEEPSLATE_DIAMOND_ORE,
     GLOWING_REDSTONE_ORE("GLOWING_REDSTONE_ORE", "REDSTONE_ORE"),
     NETHER_QUARTZ_ORE("QUARTZ_ORE", "NETHER_QUARTZ_ORE"),
     LAPIS_LAZULI("INK_SACK", "LAPIS_LAZULI", (short) 4),
@@ -116,12 +126,19 @@ public enum UniversalMaterial{
     WOODEN_PICKAXE("WOOD_PICKAXE", "WOODEN_PICKAXE"),
     GOLDEN_PICKAXE("GOLD_PICKAXE", "GOLDEN_PICKAXE"),
     IRON_PICKAXE,
+    NETHERITE_PICKAXE,
+
+    WOODEN_AXE("WOOD_AXE", "WOODEN_AXE"),
+    GOLDEN_AXE("GOLD_AXE", "GOLDEN_AXE"),
 
     WOODEN_SHOVEL("WOOD_SPADE", "WOODEN_SHOVEL"),
     STONE_SHOVEL("STONE_SPADE", "STONE_SHOVEL"),
     IRON_SHOVEL("IRON_SPADE", "IRON_SHOVEL"),
     GOLDEN_SHOVEL("GOLD_SPADE", "GOLDEN_SHOVEL"),
     DIAMOND_SHOVEL("DIAMOND_SPADE", "DIAMOND_SHOVEL"),
+
+    WOODEN_SWORD("WOOD_SWORD", "WOODEN_SWORD"),
+    WOODEN_HOE("WOOD_HOE", "WOODEN_HOE"),
 
     OAK_LEAVES("LEAVES", "OAK_LEAVES", (short) 0),
     SPRUCE_LEAVES("LEAVES", "SPRUCE_LEAVES", (short) 1),
@@ -147,50 +164,52 @@ public enum UniversalMaterial{
     RAW_CHICKEN("RAW_CHICKEN", "CHICKEN"),
     RAW_MUTTON("MUTTON", "MUTTON"),
     RAW_RABBIT("RABBIT", "RABBIT"),
-    RAW_PORK("PORK", "PORKCHOP");
+    RAW_PORK("PORK", "PORKCHOP"),
+
+    OAK_PLANKS("WOOD", "OAK_PLANKS", (short) 0),
+    SPRUCE_PLANKS("WOOD", "SPRUCE_PLANKS", (short) 1),
+    BIRCH_PLANKS("WOOD", "BIRCH_PLANKS", (short) 2),
+    JUNGLE_PLANKS("WOOD", "JUNGLE_PLANKS", (short) 3),
+    ACACIA_PLANKS("WOOD", "ACACIA_PLANKS", (short) 4),
+    DARK_OAK_PLANKS("WOOD", "DARK_OAK_PLANKS", (short) 5);
 
     private final String name8, name13;
     private final short id8;
 
-    private boolean loaded;
     private Material material;
 
     UniversalMaterial(String name8, String name13, short id8){
         this.name8 = name8;
         this.name13 = name13;
         this.id8 = id8;
-        loaded = false;
     }
 
     UniversalMaterial(String name8, String name13){
         this.name8 = name8;
         this.name13 = name13;
         id8 = 0;
-        loaded = false;
     }
 
     UniversalMaterial(){
         this.name8 = name();
         this.name13 = name();
         id8 = 0;
-        loaded = false;
     }
 
-    @Nullable
-    public Material getType(){
-        if (!loaded){
+    public Material getType() {
+        if (material == null) {
             try {
-                material = Material.valueOf(getTypeName());
-            }catch (IllegalArgumentException ex){
-                material = null;
+                material = Material.valueOf(name13);
+            }catch (IllegalArgumentException ex) {
+                try {
+                    material = Material.valueOf(name8);
+                }catch (IllegalArgumentException ex2) {
+                    // 1.9+ item on 1.8 server.
+                }
             }
-            loaded = true;
         }
-        return material;
-    }
 
-    private String getTypeName(){
-        return (UhcCore.getVersion() < 13) ? name8 : name13;
+        return material;
     }
 
     public short getData(){
@@ -198,8 +217,7 @@ public enum UniversalMaterial{
     }
 
     @SuppressWarnings("deprecation")
-    public ItemStack getStack(int amount){
-        Validate.notNull(getType(), getTypeName() + " could not be found on this version.");
+    public ItemStack getStack(int amount) {
         return new ItemStack(getType(), amount, getData());
     }
 
@@ -238,36 +256,12 @@ public enum UniversalMaterial{
         );
     }
 
-    public static boolean isCorrectTool(Material block, Material tool){
-        switch (block){
-            case DIAMOND_ORE:
-            case EMERALD_ORE:
-            case GOLD_ORE:
-            case REDSTONE_ORE:
-                return tool == Material.DIAMOND_PICKAXE ||
-                        tool == UniversalMaterial.GOLDEN_PICKAXE.getType() ||
-                        tool == Material.IRON_PICKAXE;
-            case IRON_ORE:
-                return tool == Material.DIAMOND_PICKAXE ||
-                        tool == UniversalMaterial.GOLDEN_PICKAXE.getType() ||
-                        tool == Material.IRON_PICKAXE ||
-                        tool == Material.STONE_PICKAXE;
-            case COAL_ORE:
-                return tool == Material.DIAMOND_PICKAXE ||
-                        tool == UniversalMaterial.GOLDEN_PICKAXE.getType() ||
-                        tool == Material.IRON_PICKAXE ||
-                        tool == Material.STONE_PICKAXE ||
-                        tool == UniversalMaterial.WOODEN_PICKAXE.getType();
-            case SAND:
-            case GRAVEL:
-                return tool == UniversalMaterial.WOODEN_SHOVEL.getType() ||
-                        tool == UniversalMaterial.STONE_SHOVEL.getType() ||
-                        tool == UniversalMaterial.IRON_SHOVEL.getType() ||
-                        tool == UniversalMaterial.GOLDEN_SHOVEL.getType() ||
-                        tool == UniversalMaterial.DIAMOND_SHOVEL.getType();
-        }
-
-        return false;
+    public static boolean isAxe(Material tool) {
+        return tool == Material.DIAMOND_AXE ||
+                tool == UniversalMaterial.GOLDEN_AXE.getType() ||
+                tool == Material.IRON_AXE ||
+                tool == Material.STONE_AXE ||
+                tool == UniversalMaterial.WOODEN_AXE.getType();
     }
 
     @SuppressWarnings("deprecation")

@@ -1,11 +1,11 @@
 package com.gmail.val59000mc.utils;
 
-import com.gmail.val59000mc.UhcCore;
-import com.gmail.val59000mc.configuration.MainConfiguration;
 import com.gmail.val59000mc.game.GameManager;
+import com.gmail.val59000mc.maploader.MapLoader;
 import com.gmail.val59000mc.players.UhcPlayer;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import io.papermc.lib.PaperLib;
 import org.apache.commons.lang.Validate;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -29,9 +29,7 @@ import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
 import javax.annotation.Nullable;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.*;
 
 @SuppressWarnings("deprecation")
@@ -64,40 +62,6 @@ public class VersionUtils_1_8 extends VersionUtils{
     @Override
     public void setPlayerMaxHealth(Player player, double maxHealth) {
         player.setMaxHealth(maxHealth);
-    }
-
-    @Override
-    public void replaceOceanBiomes() {
-        int version = UhcCore.getVersion();
-        if (version > 8){
-            Bukkit.getLogger().warning("[UhcCore] Ocean biomes won't be replaced, this feature is not supported on 1." + version);
-            return;
-        }
-
-        try {
-            Class<?> biomeBase = NMSUtils.getNMSClass("BiomeBase");
-            Field biomesField = biomeBase.getDeclaredField("biomes");
-            Field idField = biomeBase.getDeclaredField("id");
-            Field modifiers = Field.class.getDeclaredField("modifiers");
-
-            biomesField.setAccessible(true);
-            idField.setAccessible(true);
-            modifiers.setAccessible(true);
-
-            modifiers.set(biomesField, biomesField.getModifiers() & ~Modifier.FINAL);
-
-            Object[] biomes = (Object[]) biomesField.get(null);
-            Object DEEP_OCEAN = biomeBase.getDeclaredField("DEEP_OCEAN").get(null);
-            Object OCEAN = biomeBase.getDeclaredField("OCEAN").get(null);
-            Object PLAINS = biomeBase.getDeclaredField("PLAINS").get(null);
-            Object FOREST = biomeBase.getDeclaredField("FOREST").get(null);
-
-            biomes[(int) idField.get(DEEP_OCEAN)] = PLAINS;
-            biomes[(int) idField.get(OCEAN)] = FOREST;
-            biomesField.set(null, biomes);
-        }catch (ClassNotFoundException | IllegalAccessException | NoSuchFieldException ex){
-            ex.printStackTrace();
-        }
     }
 
     @Override
@@ -198,18 +162,18 @@ public class VersionUtils_1_8 extends VersionUtils{
     }
 
     @Override
-    public void removeRecipeFor(ItemStack item){
+    public void removeRecipe(ItemStack item, Recipe recipe){
         Iterator<Recipe> iterator = Bukkit.recipeIterator();
 
         try {
             while (iterator.hasNext()){
                 if (iterator.next().getResult().isSimilar(item)){
                     iterator.remove();
-                    Bukkit.getLogger().info("[UhcCore] Banned item "+JsonItemUtils.getItemJson(item)+" registered");
+                    Bukkit.getLogger().info("[UhcCore] Removed recipe for item "+JsonItemUtils.getItemJson(item));
                 }
             }
         }catch (Exception ex){
-            Bukkit.getLogger().warning("[UhcCore] Failed to register "+JsonItemUtils.getItemJson(item)+" banned craft");
+            Bukkit.getLogger().warning("[UhcCore] Failed to remove recipe for item "+JsonItemUtils.getItemJson(item)+"!");
             ex.printStackTrace();
         }
     }
@@ -221,7 +185,7 @@ public class VersionUtils_1_8 extends VersionUtils{
         }
 
         Location loc = event.getFrom();
-        MainConfiguration cfg = GameManager.getGameManager().getConfiguration();
+        MapLoader mapLoader = GameManager.getGameManager().getMapLoader();
 
         try{
             Class<?> travelAgent = Class.forName("org.bukkit.TravelAgent");
@@ -230,14 +194,14 @@ public class VersionUtils_1_8 extends VersionUtils{
             Object travelAgentInstance = getPortalTravelAgent.invoke(event);
 
             if (event.getFrom().getWorld().getEnvironment() == World.Environment.NETHER){
-                loc.setWorld(Bukkit.getWorld(cfg.getOverworldUuid()));
+                loc.setWorld(mapLoader.getUhcWorld(World.Environment.NORMAL));
                 loc.setX(loc.getX() * 2d);
                 loc.setZ(loc.getZ() * 2d);
                 Location to = (Location) findOrCreate.invoke(travelAgentInstance, loc);
                 Validate.notNull(to, "TravelAgent returned null location!");
                 event.setTo(to);
             }else{
-                loc.setWorld(Bukkit.getWorld(cfg.getNetherUuid()));
+                loc.setWorld(mapLoader.getUhcWorld(World.Environment.NETHER));
                 loc.setX(loc.getX() / 2d);
                 loc.setZ(loc.getZ() / 2d);
                 Location to = (Location) findOrCreate.invoke(travelAgentInstance, loc);
@@ -320,7 +284,7 @@ public class VersionUtils_1_8 extends VersionUtils{
 
     @Override
     public void setItemUnbreakable(ItemMeta meta, boolean b){
-        if (!UhcCore.isSpigotServer()){
+        if (!PaperLib.isSpigot()){
             return; // Unable to set item as unbreakable on a none spigot server.
         }
 
@@ -332,6 +296,11 @@ public class VersionUtils_1_8 extends VersionUtils{
         }catch (ReflectiveOperationException ex){
             ex.printStackTrace();
         }
+    }
+
+    @Override
+    public void killPlayer(Player player) {
+        player.damage(player.getHealth());
     }
 
 }

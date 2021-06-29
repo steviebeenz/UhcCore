@@ -1,12 +1,18 @@
 cutclean:
   # Set to false to disable unlimited lapis in CutClean
   unlimited-lapis: true
+fastleavesdecay:
+  # Time to decay leaves in ticks.
+  time-decay: 5
 timebomb:
   # Time before exploding chest.
   delay: 30
 bestpve:
   # Time between healing players on best PvE list.
   delay: 600
+teaminventory:
+  # Should the team inventory be dropped when the last player on a team is eliminated?
+  drop-on-team-elimination: false
 noclean:
   # Time players are invulnerable for.
   duration: 30
@@ -31,3 +37,13 @@ achievementhunter:
   health-at-start: 10
   # Amount of health added per achievement.
   health-added: 1
+hastey_boys:
+  # Level of Efficiency enchantment.
+  efficiency: 3
+  # Level of Durability enchantment.
+  durability: 1
+  # Set to true if crafting wooden tools should create stone tools instead.
+  stone-tools: false
+timber:
+  # Set to true if you want to trees drop oak planks.
+  drop-planks: false

@@ -1,15 +1,14 @@
 package com.gmail.val59000mc.listeners;
 
 import com.gmail.val59000mc.UhcCore;
+import com.gmail.val59000mc.configuration.MainConfig;
 import com.gmail.val59000mc.customitems.*;
 import com.gmail.val59000mc.exceptions.UhcTeamException;
 import com.gmail.val59000mc.game.GameManager;
 import com.gmail.val59000mc.game.GameState;
+import com.gmail.val59000mc.game.handlers.ScoreboardHandler;
 import com.gmail.val59000mc.languages.Lang;
-import com.gmail.val59000mc.players.PlayerState;
-import com.gmail.val59000mc.players.PlayersManager;
-import com.gmail.val59000mc.players.UhcPlayer;
-import com.gmail.val59000mc.players.UhcTeam;
+import com.gmail.val59000mc.players.*;
 import com.gmail.val59000mc.scenarios.Scenario;
 import com.gmail.val59000mc.scenarios.ScenarioManager;
 import com.gmail.val59000mc.utils.UniversalMaterial;
@@ -38,6 +37,28 @@ import org.bukkit.potion.PotionEffectType;
 
 public class ItemsListener implements Listener {
 
+	private final GameManager gameManager;
+	private final MainConfig config;
+	private final PlayerManager playerManager;
+	private final TeamManager teamManager;
+	private final ScenarioManager scenarioManager;
+	private final ScoreboardHandler scoreboardHandler;
+
+	public ItemsListener(
+			GameManager gameManager,
+			MainConfig config,
+			PlayerManager playerManager,
+			TeamManager teamManager,
+			ScenarioManager scenarioManager,
+			ScoreboardHandler scoreboardHandler) {
+		this.gameManager = gameManager;
+		this.config = config;
+		this.playerManager = playerManager;
+		this.teamManager = teamManager;
+		this.scenarioManager = scenarioManager;
+		this.scoreboardHandler = scoreboardHandler;
+	}
+
 	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onRightClickItem(PlayerInteractEvent event){
 		if (
@@ -48,8 +69,7 @@ public class ItemsListener implements Listener {
 		}
 
 		Player player = event.getPlayer();
-		GameManager gm = GameManager.getGameManager();
-		UhcPlayer uhcPlayer = gm.getPlayersManager().getUhcPlayer(player);
+		UhcPlayer uhcPlayer = playerManager.getUhcPlayer(player);
 		ItemStack hand = player.getItemInHand();
 
 		if (GameItem.isGameItem(hand)){
@@ -59,14 +79,15 @@ public class ItemsListener implements Listener {
 			return;
 		}
 
-		if ( (gm.getGameState().equals(GameState.PLAYING) || gm.getGameState().equals(GameState.DEATHMATCH))
+		GameState state = gameManager.getGameState();
+		if ((state == GameState.PLAYING || state == GameState.DEATHMATCH)
 				&& UhcItems.isRegenHeadItem(hand)
 				&& uhcPlayer.getState().equals(PlayerState.PLAYING)
 				&& (event.getAction() == Action.RIGHT_CLICK_AIR
 				|| event.getAction() == Action.RIGHT_CLICK_BLOCK)
 		) {
 			event.setCancelled(true);
-			uhcPlayer.getTeam().regenTeam(gm.getConfiguration().getEnableDoubleRegenHead());
+			uhcPlayer.getTeam().regenTeam(config.get(MainConfig.DOUBLE_REGEN_HEAD));
 			player.getInventory().remove(hand);
 		}
 	}
@@ -76,13 +97,12 @@ public class ItemsListener implements Listener {
 		handleScenarioInventory(event);
 
 		ItemStack item = event.getCurrentItem();
-		GameManager gm = GameManager.getGameManager();
 		Player player = (Player) event.getWhoClicked();
-		UhcPlayer uhcPlayer = gm.getPlayersManager().getUhcPlayer(player);
+		UhcPlayer uhcPlayer = playerManager.getUhcPlayer(player);
 
 		// Stop players from moving game items in their inventory.
 		// Above item == null check as item is null on hotbar swap.
-		if (gm.getGameState() == GameState.WAITING && event.getAction() == InventoryAction.HOTBAR_SWAP){
+		if (gameManager.getGameState() == GameState.WAITING && event.getAction() == InventoryAction.HOTBAR_SWAP){
 			event.setCancelled(true);
 		}
 
@@ -92,7 +112,7 @@ public class ItemsListener implements Listener {
 		}
 
 		// Listen for GameItems
-		if (gm.getGameState() == GameState.WAITING){
+		if (gameManager.getGameState() == GameState.WAITING){
 			if (GameItem.isGameItem(item)){
 				event.setCancelled(true);
 				handleGameItemInteract(GameItem.getGameItem(item), player, uhcPlayer, item);
@@ -122,7 +142,7 @@ public class ItemsListener implements Listener {
 			if(KitsManager.isKitItem(item)){
 				event.setCancelled(true);
 				Kit kit = KitsManager.getKitByName(item.getItemMeta().getDisplayName());
-				if(kit.canBeUsedBy(player, gm.getConfiguration())){
+				if(kit.canBeUsedBy(player, config)){
 					uhcPlayer.setKit(kit);
 					uhcPlayer.sendMessage(Lang.ITEMS_KIT_SELECTED.replace("%kit%", kit.getName()));
 				}else{
@@ -135,7 +155,7 @@ public class ItemsListener implements Listener {
 		if (UhcItems.isTeamSkullItem(item)){
 			event.setCancelled(true);
 
-			UhcTeam team = gm.getTeamManager().getTeamByName(item.getItemMeta().getDisplayName());
+			UhcTeam team = teamManager.getTeamByName(item.getItemMeta().getDisplayName());
 
 			// Click on a player head to reply to invite
 			if(event.getView().getTitle().equals(Lang.TEAM_INVENTORY_INVITES)){
@@ -169,7 +189,7 @@ public class ItemsListener implements Listener {
 				}
 
 				// check if still available
-				String newPrefix = gm.getTeamManager().getTeamPrefix(selectedColor);
+				String newPrefix = teamManager.getTeamPrefix(selectedColor);
 				if (newPrefix == null){
 					uhcPlayer.sendMessage(Lang.TEAM_MESSAGE_COLOR_UNAVAILABLE);
 					return;
@@ -178,7 +198,7 @@ public class ItemsListener implements Listener {
 				// assign color and update color on tab
 				uhcPlayer.getTeam().setPrefix(newPrefix);
 				for (UhcPlayer teamMember : uhcPlayer.getTeam().getMembers()){
-					gm.getScoreboardManager().updatePlayerTab(teamMember);
+					scoreboardHandler.updatePlayerOnTab(teamMember);
 				}
 
 				uhcPlayer.sendMessage(Lang.TEAM_MESSAGE_COLOR_CHANGED);
@@ -192,7 +212,7 @@ public class ItemsListener implements Listener {
 			if(CraftsManager.isCraftItem(item)){
 				player.closeInventory();
 				Craft craft = CraftsManager.getCraftByDisplayName(item.getItemMeta().getDisplayName());
-				if(!gm.getConfiguration().getEnableCraftsPermissions() || (gm.getConfiguration().getEnableCraftsPermissions() && player.hasPermission("uhc-core.craft."+craft.getName()))){
+				if(!config.get(MainConfig.ENABLE_CRAFTS_PERMISSIONS) || (config.get(MainConfig.ENABLE_CRAFTS_PERMISSIONS) && player.hasPermission("uhc-core.craft."+craft.getName()))){
 					CraftsManager.openCraftInventory(player,craft);
 				}else{
 					player.sendMessage(Lang.ITEMS_CRAFT_NO_PERMISSION.replace("%craft%", craft.getName()));
@@ -208,7 +228,7 @@ public class ItemsListener implements Listener {
 		}
 		
 		// Ban level 2 potions
-		if(event.getInventory().getType().equals(InventoryType.BREWING) && gm.getConfiguration().getBanLevelTwoPotions()){
+		if(event.getInventory().getType().equals(InventoryType.BREWING) && config.get(MainConfig.BAN_LEVEL_TWO_POTIONS)){
 			final BrewerInventory inv = (BrewerInventory) event.getInventory();
 			final HumanEntity human = event.getWhoClicked();
 			Bukkit.getScheduler().runTaskLater(UhcCore.getPlugin(), new CheckBrewingStandAfterClick(inv.getHolder(), human),1);
@@ -216,8 +236,6 @@ public class ItemsListener implements Listener {
 	}
 
 	private void handleGameItemInteract(GameItem gameItem, Player player, UhcPlayer uhcPlayer, ItemStack item){
-		GameManager gm = GameManager.getGameManager();
-
 		switch (gameItem){
 			case TEAM_SELECTION:
 				UhcItems.openTeamMainInventory(player, uhcPlayer);
@@ -239,18 +257,18 @@ public class ItemsListener implements Listener {
 				break;
 			case SCENARIO_VIEWER:
 				Inventory inv;
-				if (gm.getConfiguration().getEnableScenarioVoting()){
-					inv = gm.getScenarioManager().getScenarioVoteInventory(uhcPlayer);
+				if (config.get(MainConfig.ENABLE_SCENARIO_VOTING)){
+					inv = scenarioManager.getScenarioVoteInventory(uhcPlayer);
 				}else {
-					inv = gm.getScenarioManager().getScenarioMainInventory(player.hasPermission("uhc-core.scenarios.edit"));
+					inv = scenarioManager.getScenarioMainInventory(player.hasPermission("uhc-core.scenarios.edit"));
 				}
 				player.openInventory(inv);
 				break;
 			case BUNGEE_ITEM:
-				GameManager.getGameManager().getPlayersManager().sendPlayerToBungeeServer(player);
+				playerManager.sendPlayerToBungeeServer(player);
 				break;
 			case COMPASS_ITEM:
-				uhcPlayer.pointCompassToNextPlayer(gm.getConfiguration().getPlayingCompassMode(), gm.getConfiguration().getPlayingCompassCooldown());
+				uhcPlayer.pointCompassToNextPlayer(config.get(MainConfig.PLAYING_COMPASS_MODE), config.get(MainConfig.PLAYING_COMPASS_COOLDOWN));
 				break;
 			case TEAM_READY:
 			case TEAM_NOT_READY:
@@ -277,6 +295,9 @@ public class ItemsListener implements Listener {
 			case TEAM_LEAVE:
 				try {
 					uhcPlayer.getTeam().leave(uhcPlayer);
+
+					// Update player tab
+					scoreboardHandler.updatePlayerOnTab(uhcPlayer);
 				}catch (UhcTeamException ex){
 					uhcPlayer.sendMessage(ex.getMessage());
 				}
@@ -306,14 +327,14 @@ public class ItemsListener implements Listener {
 		}
 
 		String line = meta.getLore().get(1).replace(ChatColor.DARK_GRAY.toString(), "");
-		UhcTeam team = GameManager.getGameManager().getTeamManager().getTeamByName(line);
+		UhcTeam team = teamManager.getTeamByName(line);
 
 		if (team == null){
 			uhcPlayer.sendMessage(Lang.TEAM_MESSAGE_NO_LONGER_EXISTS);
 			return;
 		}
 
-		GameManager.getGameManager().getTeamManager().replyToTeamInvite(uhcPlayer, team, accepted);
+		teamManager.replyToTeamInvite(uhcPlayer, team, accepted);
 	}
 
 	private void openTeamRenameGUI(Player player, UhcTeam team){
@@ -323,7 +344,7 @@ public class ItemsListener implements Listener {
 				.text(team.getTeamName())
 				.item(new ItemStack(Material.NAME_TAG))
 				.onComplete(((p, s) -> {
-					if (GameManager.getGameManager().getTeamManager().isValidTeamName(s)){
+					if (teamManager.isValidTeamName(s)){
 						team.setTeamName(s);
 						p.sendMessage(Lang.TEAM_MESSAGE_NAME_CHANGED);
 						return AnvilGUI.Response.close();
@@ -351,7 +372,7 @@ public class ItemsListener implements Listener {
 	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onHopperEvent(InventoryMoveItemEvent event) {
 		Inventory inv = event.getDestination();
-		if(inv.getType().equals(InventoryType.BREWING) && GameManager.getGameManager().getConfiguration().getBanLevelTwoPotions() && inv.getHolder() instanceof BrewingStand){
+		if(inv.getType().equals(InventoryType.BREWING) && config.get(MainConfig.BAN_LEVEL_TWO_POTIONS) && inv.getHolder() instanceof BrewingStand){
 			Bukkit.getScheduler().runTaskLater(UhcCore.getPlugin(), new CheckBrewingStandAfterClick((BrewingStand) inv.getHolder(), null),1);
 		}
 		
@@ -383,9 +404,8 @@ public class ItemsListener implements Listener {
 	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onPlayerDropItem(PlayerDropItemEvent event) {
 		ItemStack item = event.getItemDrop().getItemStack();
-		GameManager gm = GameManager.getGameManager();
 
-		if (gm.getGameState() == GameState.WAITING && GameItem.isGameItem(item)){
+		if (gameManager.getGameState() == GameState.WAITING && GameItem.isGameItem(item)){
 			event.setCancelled(true);
 		}
 	}
@@ -394,7 +414,17 @@ public class ItemsListener implements Listener {
 	public void onPlayerItemConsume(PlayerItemConsumeEvent e){
 		if (e.getItem() == null) return;
 
-		if (e.getItem().equals(UhcItems.createGoldenHead())){
+		Craft craft = CraftsManager.getCraft(e.getItem());
+		if (craft != null){
+			for (Craft.OnConsumeListener listener : craft.getOnConsumeListeners()) {
+				if (listener.onConsume(playerManager.getUhcPlayer(e.getPlayer()))) {
+					e.setCancelled(true);
+					return;
+				}
+			}
+		}
+
+		if (e.getItem().isSimilar(UhcItems.createGoldenHead())){
 			e.getPlayer().addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 200, 1));
 		}
 	}
@@ -410,12 +440,10 @@ public class ItemsListener implements Listener {
 			return;
 		}
 
-		Player player = ((Player) e.getWhoClicked()).getPlayer();
+		Player player = (Player) e.getWhoClicked();
+		UhcPlayer uhcPlayer = playerManager.getUhcPlayer(player);
 		ItemStack item = e.getCurrentItem();
 		ItemMeta meta = item.getItemMeta();
-		GameManager gm = GameManager.getGameManager();
-        PlayersManager pm = gm.getPlayersManager();
-		ScenarioManager scenarioManager = gm.getScenarioManager();
 
 		boolean mainInventory = clickedInv.getTitle().equals(Lang.SCENARIO_GLOBAL_INVENTORY);
 		boolean editInventory = clickedInv.getTitle().equals(Lang.SCENARIO_GLOBAL_INVENTORY_EDIT);
@@ -433,49 +461,56 @@ public class ItemsListener implements Listener {
 		if (e.getClick() == ClickType.RIGHT || mainInventory){
 			// Handle edit item
 			if (meta.getDisplayName().equals(Lang.SCENARIO_GLOBAL_ITEM_EDIT)) {
-				Inventory inv = scenarioManager.getScenarioEditInventory();
+				uhcPlayer.setBrowsingPage(0);
+				Inventory inv = scenarioManager.getScenarioEditInventory(0);
 				player.openInventory(inv);
-				return;
-			}
-
-			// Clicked scenario
-			Scenario scenario = Scenario.getScenario(meta.getDisplayName());
-
-			// Clicked item is not a scenario item
-			if (scenario == null){
 				return;
 			}
 
 			// Send scenario info
-			player.sendMessage(Lang.SCENARIO_GLOBAL_DESCRIPTION_HEADER.replace("%scenario%", scenario.getName()));
-			scenario.getDescription().forEach(s -> player.sendMessage(Lang.SCENARIO_GLOBAL_DESCRIPTION_PREFIX + s));
+			scenarioManager.getScenarioByName(meta.getDisplayName()).ifPresent(sce -> {
+				player.sendMessage(Lang.SCENARIO_GLOBAL_DESCRIPTION_HEADER.replace("%scenario%", sce.getInfo().getName()));
+				sce.getInfo().getDescription().forEach(s -> player.sendMessage(Lang.SCENARIO_GLOBAL_DESCRIPTION_PREFIX + s));
+			});
 		}else if (editInventory){
 			// Handle back item
-			if (item.getItemMeta().getDisplayName().equals(Lang.SCENARIO_GLOBAL_ITEM_BACK)){
-				Inventory inv = scenarioManager.getScenarioMainInventory(true);
+			if (item.getItemMeta().getDisplayName().equals(Lang.SCENARIO_GLOBAL_ITEM_BACK)) {
+				Inventory inv;
+
+				int page = uhcPlayer.getBrowsingPage() - 1;
+				if (page < 0) {
+					inv = scenarioManager.getScenarioMainInventory(true);
+				}else {
+					uhcPlayer.setBrowsingPage(page);
+					inv = scenarioManager.getScenarioEditInventory(page);
+				}
+				player.openInventory(inv);
+				return;
+			}
+			// Handle next item
+			if (item.getItemMeta().getDisplayName().equals(Lang.SCENARIO_GLOBAL_ITEM_NEXT)) {
+				int page = uhcPlayer.getBrowsingPage() + 1;
+				uhcPlayer.setBrowsingPage(page);
+				Inventory inv = scenarioManager.getScenarioEditInventory(page);
 				player.openInventory(inv);
 				return;
 			}
 
-			// Clicked scenario
-			Scenario scenario = Scenario.getScenario(meta.getDisplayName());
-
 			// toggle scenario
-			scenarioManager.toggleScenario(scenario);
+			scenarioManager.getScenarioByName(meta.getDisplayName())
+					.ifPresent(scenarioManager::toggleScenario);
 
 			// Open edit inventory
-			player.openInventory(scenarioManager.getScenarioEditInventory());
+			player.openInventory(scenarioManager.getScenarioEditInventory(uhcPlayer.getBrowsingPage()));
 		}else if (voteInventory){
-            UhcPlayer uhcPlayer = pm.getUhcPlayer(player);
-
 			// Clicked scenario
-			Scenario scenario = Scenario.getScenario(meta.getDisplayName());
+			Scenario scenario = scenarioManager.getScenarioByName(meta.getDisplayName()).orElse(null);
 
 			// toggle scenario
 			if (uhcPlayer.getScenarioVotes().contains(scenario)){
 				uhcPlayer.getScenarioVotes().remove(scenario);
 			}else{
-				int maxVotes = gm.getConfiguration().getMaxScenarioVotes();
+				int maxVotes = config.get(MainConfig.MAX_SCENARIO_VOTES);
 				if (uhcPlayer.getScenarioVotes().size() == maxVotes){
 					player.sendMessage(Lang.SCENARIO_GLOBAL_VOTE_MAX.replace("%max%", String.valueOf(maxVotes)));
 					return;

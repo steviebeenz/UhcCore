@@ -1,11 +1,11 @@
 package com.gmail.val59000mc.commands;
 
 import com.gmail.val59000mc.customitems.UhcItems;
-import com.gmail.val59000mc.exceptions.UhcPlayerDoesntExistException;
+import com.gmail.val59000mc.exceptions.UhcPlayerDoesNotExistException;
 import com.gmail.val59000mc.game.GameManager;
 import com.gmail.val59000mc.game.GameState;
 import com.gmail.val59000mc.languages.Lang;
-import com.gmail.val59000mc.players.PlayersManager;
+import com.gmail.val59000mc.players.PlayerManager;
 import com.gmail.val59000mc.players.UhcPlayer;
 import com.gmail.val59000mc.players.UhcTeam;
 import org.bukkit.Bukkit;
@@ -31,7 +31,7 @@ public class TeamCommandExecutor implements CommandExecutor{
         }
 
         Player player = (Player) sender;
-        PlayersManager pm = gameManager.getPlayersManager();
+        PlayerManager pm = gameManager.getPlayerManager();
         UhcPlayer uhcPlayer = pm.getUhcPlayer(player);
 
         if (args.length == 0){
@@ -90,7 +90,7 @@ public class TeamCommandExecutor implements CommandExecutor{
 
             try{
                 teamLeader = pm.getUhcPlayer(args[1]);
-            }catch (UhcPlayerDoesntExistException ex){
+            }catch (UhcPlayerDoesNotExistException ex){
                 player.sendMessage(Lang.TEAM_MESSAGE_PLAYER_NOT_ONLINE.replace("%player%", args[1]));
                 return true;
             }

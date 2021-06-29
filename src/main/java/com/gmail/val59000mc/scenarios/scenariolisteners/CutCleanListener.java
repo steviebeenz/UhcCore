@@ -4,6 +4,7 @@ import com.gmail.val59000mc.customitems.UhcItems;
 import com.gmail.val59000mc.scenarios.Option;
 import com.gmail.val59000mc.scenarios.Scenario;
 import com.gmail.val59000mc.scenarios.ScenarioListener;
+import com.gmail.val59000mc.utils.OreType;
 import com.gmail.val59000mc.utils.UniversalMaterial;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -19,6 +20,8 @@ import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.EnchantingInventory;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+
+import java.util.Optional;
 
 public class CutCleanListener extends ScenarioListener{
 
@@ -73,40 +76,43 @@ public class CutCleanListener extends ScenarioListener{
     @EventHandler (priority = EventPriority.HIGH)
     public void onBlockBreak(BlockBreakEvent e){
 
-        if (isActivated(Scenario.TRIPLEORES) || (isActivated(Scenario.VEINMINER) && e.getPlayer().isSneaking())){
+        if (isEnabled(Scenario.TRIPLE_ORES) || (isEnabled(Scenario.VEIN_MINER) && e.getPlayer().isSneaking())){
             return;
         }
 
         Block block = e.getBlock();
+        Material tool = e.getPlayer().getItemInHand().getType();
+        Location loc = e.getBlock().getLocation().add(0.5, 0, 0.5);
+        Material type = block.getType();
+        ItemStack drop = null;
 
-        if (checkTool && !UniversalMaterial.isCorrectTool(block.getType(), e.getPlayer().getItemInHand().getType())){
-            return;
+        Optional<OreType> oreType = OreType.valueOf(type);
+
+        if (
+                oreType.isPresent() &&
+                        oreType.get().needsSmelting() &&
+                        (!checkTool || oreType.get().isCorrectTool(tool))
+        ) {
+            int xp = oreType.get().getXpPerBlock();
+            int count = 1;
+
+            if (oreType.get() == OreType.GOLD && isEnabled(Scenario.DOUBLE_GOLD)) {
+                count *= 2;
+            }
+
+            drop = new ItemStack(oreType.get().getDrop(), count);
+            UhcItems.spawnExtraXp(loc,xp);
         }
 
-        Location loc = e.getBlock().getLocation().add(0.5, 0, 0.5);
+        if (type == Material.SAND) {
+            drop = new ItemStack(Material.GLASS);
+        } else if (type == Material.GRAVEL) {
+            drop = new ItemStack(Material.FLINT);
+        }
 
-        switch (block.getType()){
-            case IRON_ORE:
-                block.setType(Material.AIR);
-                loc.getWorld().dropItem(loc,new ItemStack(Material.IRON_INGOT));
-                UhcItems.spawnExtraXp(loc,2);
-                break;
-            case GOLD_ORE:
-                block.setType(Material.AIR);
-                loc.getWorld().dropItem(loc,new ItemStack(Material.GOLD_INGOT));
-                if (isActivated(Scenario.DOUBLEGOLD)){
-                    loc.getWorld().dropItem(loc,new ItemStack(Material.GOLD_INGOT));
-                }
-                UhcItems.spawnExtraXp(loc,3);
-                break;
-            case SAND:
-                block.setType(Material.AIR);
-                loc.getWorld().dropItem(loc,new ItemStack(Material.GLASS));
-                break;
-            case GRAVEL:
-                block.setType(Material.AIR);
-                loc.getWorld().dropItem(loc,new ItemStack(Material.FLINT));
-                break;
+        if (drop != null) {
+            block.setType(Material.AIR);
+            loc.getWorld().dropItem(loc, drop);
         }
     }
 

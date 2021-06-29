@@ -3,7 +3,7 @@ package com.gmail.val59000mc.commands;
 import com.gmail.val59000mc.UhcCore;
 import com.gmail.val59000mc.game.GameManager;
 import com.gmail.val59000mc.game.GameState;
-import com.gmail.val59000mc.players.PlayersManager;
+import com.gmail.val59000mc.players.PlayerManager;
 import com.gmail.val59000mc.players.UhcPlayer;
 import com.gmail.val59000mc.utils.MojangUtils;
 import org.bukkit.Bukkit;
@@ -30,7 +30,7 @@ public class ReviveCommandExecutor implements CommandExecutor{
             return true;
         }
 
-        if (gameManager.getGameState() != GameState.PLAYING){
+        if (gameManager.getGameState() != GameState.PLAYING && gameManager.getGameState() != GameState.DEATHMATCH){
             sender.sendMessage(ChatColor.RED + "You can only use this command while playing!");
             return true;
         }
@@ -47,16 +47,21 @@ public class ReviveCommandExecutor implements CommandExecutor{
         }
 
         Bukkit.getScheduler().runTaskAsynchronously(UhcCore.getPlugin(), () -> uuidCallback(MojangUtils.getPlayerUuid(name), MojangUtils.getPlayerName(name), spawnWithItems, sender));
-
         return true;
     }
 
     private void uuidCallback(UUID uuid, String name, boolean spawnWithItems, CommandSender caller){
+        if (!Bukkit.isPrimaryThread()){
+            // Run in main bukkit thread
+            Bukkit.getScheduler().runTask(UhcCore.getPlugin(), () -> uuidCallback(uuid, name, spawnWithItems, caller));
+            return;
+        }
+
         if (uuid == null){
             caller.sendMessage(ChatColor.RED + "Player not found!");
         }
 
-        PlayersManager pm = gameManager.getPlayersManager();
+        PlayerManager pm = gameManager.getPlayerManager();
 
         UhcPlayer uhcPlayer = pm.revivePlayer(uuid, name, spawnWithItems);
 

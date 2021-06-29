@@ -1,5 +1,6 @@
 package com.gmail.val59000mc.scenarios.scenariolisteners;
 
+import com.gmail.val59000mc.configuration.MainConfig;
 import com.gmail.val59000mc.exceptions.UhcPlayerNotOnlineException;
 import com.gmail.val59000mc.game.GameManager;
 import com.gmail.val59000mc.players.PlayerState;
@@ -30,9 +31,9 @@ public class DragonRushListener extends ScenarioListener{
 
     @Override
     public void onEnable(){
-        if (!GameManager.getGameManager().getConfiguration().getEnableTheEnd()){
+        if (!GameManager.getGameManager().getConfig().get(MainConfig.ENABLE_THE_END)){
             Bukkit.broadcastMessage(ChatColor.RED + "[UhcCore] For DragonRush the end needs to be enabled first!");
-            getScenarioManager().removeScenario(Scenario.DRAGONRUSH);
+            getScenarioManager().disableScenario(Scenario.DRAGON_RUSH);
             return;
         }
 
@@ -94,11 +95,11 @@ public class DragonRushListener extends ScenarioListener{
         }
 
         Player killer = e.getEntity().getKiller();
-        UhcPlayer uhcKiller = getPlayersManager().getUhcPlayer(killer);
+        UhcPlayer uhcKiller = getPlayerManager().getUhcPlayer(killer);
 
         List<UhcPlayer> spectators = new ArrayList<>();
 
-        for (UhcPlayer playingPlayer : getPlayersManager().getAllPlayingPlayers()){
+        for (UhcPlayer playingPlayer : getPlayerManager().getAllPlayingPlayers()){
 
             if (!playingPlayer.isInTeamWith(uhcKiller)){
                 spectators.add(playingPlayer);
@@ -117,11 +118,11 @@ public class DragonRushListener extends ScenarioListener{
             }
         }
 
-        getPlayersManager().checkIfRemainingPlayers();
+        getPlayerManager().checkIfRemainingPlayers();
     }
 
     private Location getPortalLocation(){
-        World world = Bukkit.getWorld(GameManager.getGameManager().getConfiguration().getOverworldUuid());
+        World world = getGameManager().getMapLoader().getUhcWorld(World.Environment.NORMAL);
         int portalY = 0;
 
         for (int x = -4; x < 4; x++) {
